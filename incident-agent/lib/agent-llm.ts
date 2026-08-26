@@ -28,7 +28,13 @@ export async function diagnose(context: string): Promise<DiagnosisResult | null>
           { role: "user", content: context },
         ],
         temperature: 0.2,
-        max_tokens: 500,
+        max_tokens: 800,
+        // qwen3 is a hybrid reasoning model - without this it burns the
+        // completion budget on hidden <think> content before ever writing
+        // the structured INVESTIGATION/PROPOSED_FIX/CONFIDENCE answer,
+        // which silently produced empty/fallback values here. See
+        // runbooks/gotchas.md "reasoning models return empty content".
+        chat_template_kwargs: { enable_thinking: false },
       }),
       signal: AbortSignal.timeout(30000),
     });
