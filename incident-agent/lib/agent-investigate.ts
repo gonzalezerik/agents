@@ -50,12 +50,33 @@ export async function investigateAlert(fingerprint: string): Promise<AgentRun | 
   const context = contextParts.join("\n");
   const diagnosis = await diagnose(context);
 
+  // Outcome:
+  // - "proposed fix": diagnosis succeeded and there's a pod we can safely
+  //   auto-restart - the normal one-click-approval path.
+  // - "escalated": the agent has nothing safe to offer a human to just
+  //   click through - either it couldn't diagnose at all (LLM unreachable),
+  //   or it diagnosed a critical-severity alert with no auto-applicable fix.
+  //   This is the only outcome that triggers the TakeoverModal.
+  // - "investigated": diagnosis succeeded, no auto-applicable action, but
+  //   not urgent enough (non-critical) to interrupt with a modal - sits in
+  //   the timeline with a manual note instead.
+  let outcome: string;
+  if (!diagnosis) {
+    outcome = "escalated";
+  } else if (candidatePod) {
+    outcome = "proposed fix";
+  } else if (alert.severity === "critical") {
+    outcome = "escalated";
+  } else {
+    outcome = "investigated";
+  }
+
   const run = await insertAgentRun({
     entity: alert.namespace ?? alert.alertname,
     summary: diagnosis ? `Investigated ${alert.alertname}` : `Investigation failed for ${alert.alertname} (LLM unreachable)`,
     mode: "report-only",
     tool_access: "read-only",
-    outcome: diagnosis ? "proposed fix" : "investigated",
+    outcome,
     tool_name: "list_pods,list_events,llm_diagnose",
     confidence: diagnosis?.confidence ?? null,
     investigation: diagnosis?.investigation ?? `Could not reach the diagnostic LLM. Raw context:\n${context}`,
