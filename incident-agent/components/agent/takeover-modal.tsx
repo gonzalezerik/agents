@@ -8,7 +8,7 @@ interface Incident {
   opened: string;
 }
 
-export function TakeoverModal({ incidents }: { incidents: Incident[] }) {
+export function TakeoverModal({ incidents, onAcknowledge }: { incidents: Incident[]; onAcknowledge?: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl bg-[#0F1011] rounded-xl border border-[#23252A] shadow-2xl overflow-hidden">
@@ -24,13 +24,13 @@ export function TakeoverModal({ incidents }: { incidents: Incident[] }) {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">Incidents Needing Attention</h2>
-              <p className="text-white/80 text-sm">Unacknowledged critical incidents from overnight</p>
+              <p className="text-white/80 text-sm">The agent investigated but couldn&apos;t resolve these automatically</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
           {incidents.map((incident) => (
             <div key={incident.id} className="bg-[#161718] rounded-lg p-4 border-l-4 border-[#F0553F]">
               <div className="flex items-center justify-between mb-2">
@@ -38,42 +38,29 @@ export function TakeoverModal({ incidents }: { incidents: Incident[] }) {
                 <span className="text-xs text-[#F0553F] font-mono">#{incident.id}</span>
               </div>
               <div className="text-sm text-[#8A8F98] mb-2">
-                Affected: <span className="font-mono text-[#D0D6E0]">{incident.entity}</span> ·
-                Opened: <span className="font-mono text-[#62666D]">{incident.opened}</span>
+                Affected: <span className="font-mono text-[#D0D6E0]">{incident.entity}</span> · Opened:{" "}
+                <span className="font-mono text-[#62666D]">{incident.opened}</span>
               </div>
-              <div className="bg-[#1D1F21] rounded p-3 text-xs text-[#8A8F98]">
-                <span className="font-semibold text-[#62666D]">Agent Summary:</span> {incident.summary}
+              <div className="bg-[#1D1F21] rounded p-3 text-xs text-[#8A8F98] whitespace-pre-wrap">
+                <span className="font-semibold text-[#62666D]">Agent findings:</span> {incident.summary}
               </div>
             </div>
           ))}
-
-          <div className="bg-[#1D1F21] rounded-lg p-4 text-sm text-[#8A8F98]">
-            <p className="mb-2"><strong>What happened:</strong> The agent investigated but could not resolve these incidents automatically.</p>
-            <p>
-              <strong>Next steps:</strong> Review the details below, take appropriate action, and acknowledge to clear this notification.
-            </p>
-          </div>
         </div>
 
         {/* Actions */}
         <div className="border-t border-[#23252A] p-4 flex items-center justify-between">
           <button
-            onClick={() => {}}
+            onClick={onAcknowledge}
             className="px-4 py-2 rounded bg-[#7C87FF] text-[#08090A] text-sm font-medium hover:bg-[#6B76E0]"
           >
-            Acknowledge All
-          </button>
-          <button
-            onClick={() => {}}
-            className="px-4 py-2 rounded border border-[#23252A] text-sm text-[#D0D6E0] hover:bg-[#161718]"
-          >
-            View All Incidents
+            Acknowledge
           </button>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-3 bg-[#08090A] text-xs text-[#62666D] text-center">
-          This modal appears only for critical incidents the agent couldn't resolve. Warnings/info go to the feed.
+          This modal appears only for issues the agent flagged as needing a human. See the full activity log below.
         </div>
       </div>
     </div>
