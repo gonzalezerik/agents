@@ -89,13 +89,33 @@ function applyV1(db: Database.Database) {
     INSERT OR IGNORE INTO reconciler_state (id) VALUES (1);
 
     CREATE TABLE IF NOT EXISTS shim_sessions (
-      id             TEXT PRIMARY KEY,
-      connected_at   TEXT NOT NULL,
-      last_seen      TEXT NOT NULL,
-      client_ip      TEXT NOT NULL,
-      passthrough    INTEGER NOT NULL DEFAULT 0,
-      request_count  INTEGER NOT NULL DEFAULT 0
+      id                    TEXT PRIMARY KEY,
+      connected_at          TEXT NOT NULL,
+      last_seen             TEXT NOT NULL,
+      client_ip             TEXT NOT NULL,
+      passthrough           INTEGER NOT NULL DEFAULT 0,
+      request_count         INTEGER NOT NULL DEFAULT 0,
+      orchestrator_model_id TEXT,
+      title                 TEXT  -- first user message truncated, set on first request
     );
+
+    -- Full event log: every prompt, orchestrator decision, tool call, agent
+    -- response chunk, error, repair — one row per event in order.
+    -- Stored on gpuhost in /var/lib/mc-agent/events.db and synced via mc-agent API.
+    -- session_events here is a mirror/cache; canonical copy lives on gpuhost.
+    CREATE TABLE IF NOT EXISTS session_events (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id   TEXT NOT NULL,
+      seq          INTEGER NOT NULL,  -- monotonic within session
+      ts           TEXT NOT NULL,
+      event_type   TEXT NOT NULL,
+      -- user_message | orchestrator_plan | agent_selected | tool_call |
+      -- tool_result | agent_response | final_response | error | repair |
+      -- passthrough_forward
+      payload      TEXT NOT NULL      -- JSON
+    );
+    CREATE INDEX IF NOT EXISTS session_events_session ON session_events(session_id, seq);
+    CREATE INDEX IF NOT EXISTS session_events_ts ON session_events(ts DESC);
 
     INSERT OR REPLACE INTO schema_version (version) VALUES (1);
   `);

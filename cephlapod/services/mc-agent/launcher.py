@@ -83,6 +83,19 @@ def stop(model_id: str, reason: str = "") -> bool:
     return False
 
 
+def running_ports() -> dict[str, int]:
+    """Return {model_id: port} for all tracked live processes."""
+    result = {}
+    for pid, info in list(_running.items()):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            del _running[pid]
+            continue
+        result[info["model_id"]] = info["port"]
+    return result
+
+
 def running_models() -> list[dict[str, Any]]:
     """Return list of running model state dicts for /state endpoint."""
     result = []

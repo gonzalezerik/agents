@@ -1,0 +1,19 @@
+[Unit]
+Description=Mission Control Anthropic Shim (mc-shim)
+After=network.target mc-agent.service
+
+[Service]
+Type=simple
+User=erikg
+WorkingDirectory=/opt/mc-shim
+Environment=MC_HOST_ID=gpuhost
+Environment=MC_SHIM_PORT=4000
+Environment=MC_AGENT_URL=http://127.0.0.1:4001
+Environment=MC_EVENTS_DB=/var/lib/mc-agent/events.db
+EnvironmentFile=-/etc/mc-agent.env
+ExecStart=/opt/mc-shim/venv/bin/python shim.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

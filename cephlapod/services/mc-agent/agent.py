@@ -79,6 +79,12 @@ def models_stop(req: StopRequest):
     return {"ok": True}
 
 
+@app.get("/models/running", dependencies=[Auth])
+def models_running():
+    """Return {model_id: port} for all currently running managed models."""
+    return launcher.running_ports()
+
+
 # ── Shim session passthrough ──────────────────────────────────────────────────
 
 class PassthroughRequest(BaseModel):
@@ -92,6 +98,59 @@ _passthrough: dict[str, bool] = {}
 def set_passthrough(req: PassthroughRequest):
     _passthrough[req.session_id] = req.enabled
     return {"ok": True}
+
+
+# ── Session event log proxy ───────────────────────────────────────────────────
+# Reads the events.db that mc-shim writes. Dashboard polls these endpoints.
+
+import sqlite3, json as _json, os as _os
+
+EVENTS_DB = _os.environ.get("MC_EVENTS_DB", "/var/lib/mc-agent/events.db")
+
+def _events_conn():
+    if not _os.path.exists(EVENTS_DB):
+        return None
+    conn = sqlite3.connect(EVENTS_DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.get("/sessions", dependencies=[Auth])
+def list_sessions(limit: int = 100):
+    conn = _events_conn()
+    if not conn:
+        return []
+    rows = conn.execute(
+        "SELECT * FROM sessions ORDER BY last_seen DESC LIMIT ?", (limit,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.get("/sessions/{session_id}", dependencies=[Auth])
+def get_session(session_id: str):
+    conn = _events_conn()
+    if not conn:
+        raise HTTPException(404, "Events DB not found")
+    row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Session not found")
+    return dict(row)
+
+
+@app.get("/sessions/{session_id}/events", dependencies=[Auth])
+def get_session_events(session_id: str):
+    conn = _events_conn()
+    if not conn:
+        raise HTTPException(404, "Events DB not found")
+    rows = conn.execute(
+        "SELECT id, session_id, seq, ts, event_type, payload "
+        "FROM session_events WHERE session_id = ? ORDER BY seq",
+        (session_id,)
+    ).fetchall()
+    return [
+        {**dict(r), "payload": _json.loads(r["payload"])}
+        for r in rows
+    ]
 
 
 if __name__ == "__main__":
