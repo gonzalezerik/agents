@@ -135,12 +135,12 @@ export default function LeviathanDashboard() {
           </div>
           <div className="space-y-4 border-t border-slate-800 pt-4">
             <div className="bg-cyan-950/20 border border-cyan-900/50 rounded-lg p-4">
-              <h3 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Cpu size={12} /> Granite 3.2 Synthesis</h3>
+              <h3 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Cpu size={12} /> Summary</h3>
               <p className="text-sm text-cyan-100/90 leading-relaxed font-serif">{selectedIntel.summary}</p>
             </div>
             <div className="bg-purple-950/20 border border-purple-900/50 rounded-lg p-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"></div>
-              <h3 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-2 flex items-center gap-2 relative z-10"><Brain size={12} /> Granite 4.0 Assessment</h3>
+              <h3 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-2 flex items-center gap-2 relative z-10"><Brain size={12} /> Risk Assessment</h3>
               <p className="text-sm text-purple-100/90 leading-relaxed font-serif relative z-10">{selectedIntel.analysis}</p>
               <div className="mt-4 pt-3 border-t border-purple-900/50 font-bold tracking-widest text-[10px]">
                 {renderTriangle(selectedIntel.riskLevel)} {selectedIntel.riskLevel !== "NONE" ? `IMPACT RISK: ${selectedIntel.riskLevel}` : "NO SUPPLY CHAIN IMPACT"}
@@ -157,15 +157,15 @@ export default function LeviathanDashboard() {
            
            <div className="flex justify-between items-start mb-6 border-b border-slate-800 pb-4">
               <div>
-                <h2 className="text-xl font-black text-white tracking-tight uppercase flex items-center gap-2"><Globe className="text-cyan-500 animate-pulse"/> Global Risk Sync</h2>
+                <h2 className="text-xl font-black text-white tracking-tight uppercase flex items-center gap-2"><Globe className="text-cyan-500 animate-pulse"/> Global Risk Report</h2>
                 <div className="text-[10px] font-mono text-slate-500 mt-2">
-                  {globalSync ? `LAST SYNC: ${globalSync.timestamp}` : "STATUS: INITIATING MULTI-AGENT HANDSHAKE..."}
+                  {globalSync ? `Last updated: ${globalSync.timestamp}` : "Run a scan to generate the global risk report."}
                 </div>
               </div>
-              
+
               {globalSync && (
                 <div className="flex flex-col items-end">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">DEFCON CONSENSUS</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Overall Risk</span>
                   <div className={`flex items-center gap-2 px-3 py-1.5 rounded border font-bold tracking-widest text-xs ${globalSync.overallRiskLevel === 'CRITICAL' ? 'bg-red-950/40 border-red-500/50 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : globalSync.overallRiskLevel === 'MODERATE' ? 'bg-orange-950/40 border-orange-500/50 text-orange-400' : globalSync.overallRiskLevel === 'LOW' ? 'bg-yellow-950/40 border-yellow-500/50 text-yellow-400' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
                     {renderTriangle(globalSync.overallRiskLevel)} {globalSync.overallRiskLevel}
                   </div>
@@ -176,21 +176,21 @@ export default function LeviathanDashboard() {
            {!globalSync ? (
              <div className="flex flex-col items-center justify-center py-10 space-y-4">
                 <Activity size={32} className="text-cyan-500 animate-pulse" />
-                <p className="text-xs font-mono text-slate-400 text-center">Awaiting Granite 3.2 and Granite 4.0 synchronization.<br/>Global state report generates every 3 minutes based on active threat vectors...</p>
+                <p className="text-xs font-mono text-slate-400 text-center">No report yet. Press the scan button to analyze active threats.</p>
              </div>
            ) : (
              <div className="space-y-4">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
                    <div className="flex items-center gap-2 mb-2">
                       <div className="h-6 w-6 rounded bg-cyan-900/50 flex items-center justify-center border border-cyan-500/50"><Cpu size={12} className="text-cyan-400"/></div>
-                      <span className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">Granite 3.2 (Geopolitics)</span>
+                      <span className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">Geopolitical Analysis</span>
                    </div>
                    <p className="text-sm text-slate-300 leading-relaxed font-serif pl-8 border-l-2 border-slate-800">{globalSync.agent32_geopolitics}</p>
                 </div>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
                    <div className="flex items-center gap-2 mb-2">
                       <div className="h-6 w-6 rounded bg-purple-900/50 flex items-center justify-center border border-purple-500/50"><Brain size={12} className="text-purple-400"/></div>
-                      <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Granite 4.0 (Architecture)</span>
+                      <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Supply Chain Assessment</span>
                    </div>
                    <p className="text-sm text-slate-300 leading-relaxed font-serif pl-8 border-l-2 border-slate-800">{globalSync.agent40_supply_chain}</p>
                 </div>
