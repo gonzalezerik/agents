@@ -4,7 +4,7 @@ import { Ship, LogEntry, Facility, IntelPacket, GlobalSummary } from "./types";
 import { INITIAL_SHIPS } from "./constants";
 import { Sidebar } from "./Sidebar";
 import { GlobeView } from "./GlobeView";
-import { X, Terminal, Cpu, Brain, Activity, Link as LinkIcon, Clock, User, Server, AlertTriangle, Zap, Package, Globe } from "lucide-react";
+import { X, Terminal, Cpu, Brain, Activity, Link as LinkIcon, Clock, User, Server, AlertTriangle, Zap, Package, Globe, Radio } from "lucide-react";
 
 export default function LeviathanDashboard() {
   const [ships, setShips] = useState<Ship[]>(INITIAL_SHIPS);
@@ -16,7 +16,10 @@ export default function LeviathanDashboard() {
   
   const [showDebug, setShowDebug] = useState(false);
   const [showGlobalState, setShowGlobalState] = useState(false);
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'cooldown'>('idle');
+  const [cooldownSec, setCooldownSec] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,6 +48,40 @@ export default function LeviathanDashboard() {
   const handleFacilityClick = (fac: Facility) => { setSelectedIntel(null); setShowGlobalState(false); setActiveFacility(fac); };
   const handleIntelClick = (intel: IntelPacket) => { setActiveFacility(null); setShowGlobalState(false); setSelectedIntel(intel); };
   const handleGlobalClick = () => { setActiveFacility(null); setSelectedIntel(null); setShowGlobalState(!showGlobalState); };
+
+  const startCooldown = (seconds: number) => {
+    setScanState('cooldown');
+    setCooldownSec(seconds);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownSec(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          setScanState('idle');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleScan = async () => {
+    if (scanState !== 'idle') return;
+    setScanState('scanning');
+    try {
+      const res = await fetch('/api/trigger', { method: 'POST' });
+      const data = await res.json();
+      if (res.status === 429) {
+        startCooldown(data.remainingSec ?? 300);
+      } else if (res.ok) {
+        startCooldown(300);
+      } else {
+        setScanState('idle');
+      }
+    } catch {
+      setScanState('idle');
+    }
+  };
 
   const renderTriangle = (risk: string) => {
     if (risk === "CRITICAL") return <AlertTriangle size={16} className="text-red-500 animate-pulse inline mr-1" />;
@@ -179,7 +216,29 @@ export default function LeviathanDashboard() {
       )}
 
       {/* Buttons on the Right */}
-      <div className="absolute bottom-10 right-10 z-[60] flex flex-col gap-4">
+      <div className="absolute bottom-10 right-10 z-[60] flex flex-col gap-4 items-center">
+        <button
+          onClick={handleScan}
+          disabled={scanState !== 'idle'}
+          title={scanState === 'cooldown' ? `Cooling down: ${cooldownSec}s` : 'Initiate AI scan'}
+          className={`relative border p-4 rounded-full transition-all shadow-[0_0_20px_rgba(34,211,238,0.2)] group flex flex-col items-center justify-center
+            ${scanState === 'idle' ? 'bg-slate-900 border-slate-700 hover:border-cyan-400 hover:bg-cyan-950/30 cursor-pointer' : ''}
+            ${scanState === 'scanning' ? 'bg-cyan-950/40 border-cyan-500 cursor-not-allowed' : ''}
+            ${scanState === 'cooldown' ? 'bg-slate-950 border-slate-700 cursor-not-allowed opacity-60' : ''}
+          `}
+        >
+          <Radio size={28} className={
+            scanState === 'scanning' ? 'text-cyan-400 animate-pulse' :
+            scanState === 'cooldown' ? 'text-slate-600' :
+            'text-cyan-600 group-hover:text-cyan-400'
+          } />
+          {scanState === 'cooldown' && (
+            <span className="absolute -bottom-5 text-[9px] font-mono text-slate-500">{cooldownSec}s</span>
+          )}
+          {scanState === 'scanning' && (
+            <span className="absolute -bottom-5 text-[9px] font-mono text-cyan-500 animate-pulse">SCANNING</span>
+          )}
+        </button>
         <button onClick={handleGlobalClick} className={`bg-slate-900 border p-4 rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.15)] group ${showGlobalState ? 'border-cyan-500 bg-cyan-900/20' : 'border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800'}`}>
           <Activity size={28} className={showGlobalState ? "text-cyan-400" : "text-slate-500 group-hover:text-cyan-400"} />
         </button>
