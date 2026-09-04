@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getAgentRun, markRunApplied, getA11yReport, updateA11yReportStatus } from "@/lib/pg-client";
+import { getAgentRun, markRunApplied, updateA11yReportStatus } from "@/lib/pg-client";
 import { fetchForgejoFile, createOrUpdateForgejoFile } from "@/lib/forgejo-client";
+import { sendEmail, emailFixStarting, emailDeployed } from "@/lib/email-client";
 import fs from "fs";
 
 const K8S_API = "https://kubernetes.default.svc.cluster.local";
@@ -57,6 +58,7 @@ export async function POST(
     patched?: string;
     reportId?: string;
     wcag?: string;
+    reporterEmail?: string;
   } | null;
 
   if (!action || action.type !== "a11y-patch") {
@@ -84,30 +86,52 @@ export async function POST(
   }
   const newContent = currentFile.content.replace(action.original, action.patched);
 
+  // Email: "fix is starting" — send before triggering build
+  const reporterEmail = action.reporterEmail ?? null;
+  const wcagLabel = action.wcag ?? "WCAG fix";
+  const reportUrl = action.reportId ? `https://gonzalezerik.com` : "gonzalezerik.com";
+  if (reporterEmail) {
+    sendEmail(
+      reporterEmail,
+      "Accessibility fix approved & deploying — gonzalezerik.com",
+      emailFixStarting(reportUrl, wcagLabel)
+    ).catch(console.error);
+  }
+
   // Commit to Forgejo
   const committed = await createOrUpdateForgejoFile(
     PORTFOLIO_OWNER,
     PORTFOLIO_REPO,
     action.file,
     newContent,
-    `fix(a11y): ${action.wcag ?? "WCAG fix"} in ${action.file} [agent-run:${id}]`
+    `fix(a11y): ${wcagLabel} in ${action.file} [agent-run:${id}]`
   );
   if (!committed) {
     return NextResponse.json({ error: "Forgejo commit failed" }, { status: 502 });
   }
 
   // Trigger portfolio build — Kaniko Job in portfolio namespace
-  const buildTriggered = await triggerPortfolioBuild(id);
+  const { triggered, jobName } = await triggerPortfolioBuild(id);
 
-  await markRunApplied(id, buildTriggered ? "committed + build triggered" : "committed (build trigger failed)");
+  await markRunApplied(id, triggered ? "committed + build triggered" : "committed (build trigger failed)");
   if (action.reportId) {
     await updateA11yReportStatus(action.reportId, "fix_deployed");
   }
 
-  return NextResponse.json({ ok: true, committed: true, buildTriggered });
+  // Background: poll build completion, verify live, send deployed email
+  if (reporterEmail && jobName) {
+    verifyAndNotifyDeployed({
+      reporterEmail,
+      reportUrl,
+      wcag: wcagLabel,
+      jobName,
+    }).catch(console.error);
+  }
+
+  return NextResponse.json({ ok: true, committed: true, buildTriggered: triggered });
 }
 
-async function triggerPortfolioBuild(runId: string): Promise<boolean> {
+async function triggerPortfolioBuild(runId: string): Promise<{ triggered: boolean; jobName: string | null }> {
   const forgejoUrl = process.env.FORGEJO_URL ?? "https://forgejo.example.com";
   const registryHost = new URL(forgejoUrl).hostname;
   const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19).toLowerCase();
@@ -175,28 +199,76 @@ async function triggerPortfolioBuild(runId: string): Promise<boolean> {
     },
   };
 
-  const { ok } = await k8sRequest(
-    "POST",
-    `/apis/batch/v1/namespaces/portfolio/jobs`,
-    job
-  );
-  if (!ok) return false;
+  const { ok } = await k8sRequest("POST", `/apis/batch/v1/namespaces/portfolio/jobs`, job);
+  if (!ok) return { triggered: false, jobName: null };
 
-  // Rollout restart: patch deployment with timestamp annotation to force new pods
-  const patch = {
-    spec: {
-      template: {
-        metadata: {
-          annotations: { "kubectl.kubernetes.io/restartedAt": new Date().toISOString() },
-        },
-      },
-    },
-  };
-  const { ok: patchOk } = await k8sRequest(
-    "PATCH",
-    `/apis/apps/v1/namespaces/portfolio/deployments/portfolio`,
-    patch
-  );
+  return { triggered: true, jobName };
+}
 
-  return patchOk;
+/** Polls Kaniko build, waits for pod readiness, verifies HTTP, sends deployed email. */
+async function verifyAndNotifyDeployed(opts: {
+  reporterEmail: string;
+  reportUrl: string;
+  wcag: string;
+  jobName: string;
+}) {
+  const { reporterEmail, reportUrl, wcag, jobName } = opts;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // Poll Kaniko job for up to 10 minutes (30 × 20s)
+  let buildOk = false;
+  for (let i = 0; i < 30; i++) {
+    await sleep(20_000);
+    const { data } = await k8sRequest("GET", `/apis/batch/v1/namespaces/portfolio/jobs/${jobName}`);
+    const s = (data as { status?: { succeeded?: number; failed?: number } } | undefined)?.status;
+    if ((s?.succeeded ?? 0) > 0) { buildOk = true; break; }
+    if ((s?.failed ?? 0) > 0) break;
+  }
+
+  // After build succeeds: delete current portfolio pod so it restarts with new image
+  if (buildOk) {
+    const { data: podList } = await k8sRequest(
+      "GET",
+      "/api/v1/namespaces/portfolio/pods?labelSelector=app%3Dportfolio"
+    );
+    const pods = ((podList as { items?: { metadata?: { name?: string } }[] } | undefined)?.items ?? []);
+    for (const pod of pods) {
+      const podName = pod.metadata?.name;
+      if (podName) {
+        await k8sRequest("DELETE", `/api/v1/namespaces/portfolio/pods/${podName}`);
+      }
+    }
+  }
+
+  // Wait for a ready portfolio pod (up to 3 minutes, 18 × 10s)
+  let podReady = false;
+  for (let i = 0; i < 18; i++) {
+    await sleep(10_000);
+    const { data } = await k8sRequest(
+      "GET",
+      "/api/v1/namespaces/portfolio/pods?labelSelector=app%3Dportfolio"
+    );
+    const items = ((data as { items?: unknown[] } | undefined)?.items ?? []) as {
+      status?: { containerStatuses?: { ready?: boolean }[] };
+    }[];
+    podReady = items.some((p) => p.status?.containerStatuses?.[0]?.ready === true);
+    if (podReady) break;
+  }
+
+  // HTTP check against the internal portfolio service
+  let liveVerified = false;
+  if (podReady) {
+    try {
+      const r = await fetch("http://portfolio.portfolio.svc.cluster.local", {
+        signal: AbortSignal.timeout(10_000),
+      });
+      liveVerified = r.ok;
+    } catch {}
+  }
+
+  await sendEmail(
+    reporterEmail,
+    "Accessibility fix is live — gonzalezerik.com",
+    emailDeployed(reportUrl, wcag, liveVerified)
+  );
 }
