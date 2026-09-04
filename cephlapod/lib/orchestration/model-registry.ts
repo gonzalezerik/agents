@@ -43,21 +43,7 @@ export function validateModel(model: Omit<Model, "created_at" | "updated_at">): 
     }
   }
 
-  const { gpus, vram_req, mode } = model.placement;
-  if (mode === "tensor-parallel" && gpus.length > 1) {
-    // Heterogeneous TP is not viable — flag if mixing A100 + 3090
-    const a100_uuid = "GPU-a1000001";
-    const rtx_uuid = "GPU-30900001";
-    const hasA100 = gpus.some((g) => g.startsWith(a100_uuid) || g.startsWith("GPU-a1000002"));
-    const has3090 = gpus.some((g) => g.startsWith(rtx_uuid));
-    if (hasA100 && has3090) {
-      warnings.push({
-        code: "placement-conflict",
-        message: "Tensor-parallel across A100 + RTX 3090 is not viable (heterogeneous heads). Use pipeline or layer-split instead.",
-        severity: "block",
-      });
-    }
-  }
+  const { gpus, vram_req } = model.placement;
 
   if (model.placement.llama_tree !== "llama-swap") {
     const totalVram = Object.values(vram_req).reduce((s, v) => s + v, 0);
