@@ -5,6 +5,7 @@ import {
   linkA11yReportToRun,
   updateA11yReportStatus,
 } from "./pg-client";
+import { sendEmail, emailDismissed } from "./email-client";
 
 const PORTFOLIO_OWNER = process.env.PORTFOLIO_REPO_OWNER ?? "portfolio-owner";
 const PORTFOLIO_REPO = process.env.PORTFOLIO_REPO_NAME ?? "portfolio";
@@ -14,8 +15,9 @@ export async function investigateA11yComplaint(payload: {
   reportId: string;
   url: string;
   description: string;
+  reporterEmail: string | null;
 }): Promise<void> {
-  const { reportId, url, description } = payload;
+  const { reportId, url, description, reporterEmail } = payload;
 
   await updateA11yReportStatus(reportId, "investigating");
 
@@ -35,6 +37,13 @@ export async function investigateA11yComplaint(payload: {
     });
     await linkA11yReportToRun(reportId, run?.id ?? "");
     await updateA11yReportStatus(reportId, "dismissed");
+    if (reporterEmail) {
+      sendEmail(
+        reporterEmail,
+        "Accessibility report reviewed — gonzalezerik.com",
+        emailDismissed(url, diagnosis?.analysis ?? "Not a covered WCAG 2.2 Level AA barrier.")
+      ).catch(console.error);
+    }
     await notifyNtfy(
       "A11y report dismissed",
       `${url}\n\nReason: ${diagnosis?.analysis ?? "not a WCAG violation"}`
@@ -66,6 +75,7 @@ export async function investigateA11yComplaint(payload: {
       original: diagnosis.originalCode,
       patched: diagnosis.patchedCode,
       reportId,
+      reporterEmail: reporterEmail ?? undefined,
       sourceContext: sourceContext || undefined,
     },
   });
