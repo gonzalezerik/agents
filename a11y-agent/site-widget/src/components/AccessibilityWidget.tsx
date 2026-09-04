@@ -5,19 +5,19 @@ import { useState, useRef, useEffect } from "react";
 export default function AccessibilityWidget() {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
+  const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Trap focus inside the dialog while open
   useEffect(() => {
     if (!open) return;
     const el = dialogRef.current;
     if (!el) return;
     const focusable = el.querySelectorAll<HTMLElement>(
-      'button, textarea, [tabindex]:not([tabindex="-1"])'
+      'button, input, textarea, [tabindex]:not([tabindex="-1"])'
     );
     focusable[0]?.focus();
 
@@ -52,6 +52,7 @@ export default function AccessibilityWidget() {
           url: window.location.href,
           description: description.trim(),
           userAgent: navigator.userAgent,
+          email: email.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("Submission failed");
@@ -66,6 +67,7 @@ export default function AccessibilityWidget() {
   function close() {
     setOpen(false);
     setDescription("");
+    setEmail("");
     setSubmitted(false);
     setError(null);
     triggerRef.current?.focus();
@@ -83,7 +85,6 @@ export default function AccessibilityWidget() {
         aria-haspopup="dialog"
         className="fixed bottom-4 right-4 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
       >
-        {/* Accessibility icon (person with arms raised) */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -98,14 +99,12 @@ export default function AccessibilityWidget() {
 
       {open && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-50 bg-black/40"
             aria-hidden="true"
             onClick={close}
           />
 
-          {/* Dialog */}
           <div
             ref={dialogRef}
             role="dialog"
@@ -115,15 +114,13 @@ export default function AccessibilityWidget() {
           >
             {submitted ? (
               <div>
-                <h2
-                  id="a11y-dialog-title"
-                  className="text-base font-semibold mb-2"
-                >
+                <h2 id="a11y-dialog-title" className="text-base font-semibold mb-2">
                   Thank you
                 </h2>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
                   Your report has been received. The issue will be reviewed
                   and addressed if it is a genuine accessibility barrier.
+                  {email.trim() && " You will receive email updates as it progresses."}
                 </p>
                 <button
                   onClick={close}
@@ -134,21 +131,14 @@ export default function AccessibilityWidget() {
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
-                <h2
-                  id="a11y-dialog-title"
-                  className="text-base font-semibold mb-1"
-                >
+                <h2 id="a11y-dialog-title" className="text-base font-semibold mb-1">
                   Report an accessibility issue
                 </h2>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-                  Page:{" "}
-                  <span className="font-mono">{currentPath || "/"}</span>
+                  Page: <span className="font-mono">{currentPath || "/"}</span>
                 </p>
 
-                <label
-                  htmlFor="a11y-description"
-                  className="block text-sm font-medium mb-1"
-                >
+                <label htmlFor="a11y-description" className="block text-sm font-medium mb-1">
                   What happened?
                 </label>
                 <textarea
@@ -163,12 +153,20 @@ export default function AccessibilityWidget() {
                   aria-invalid={error ? "true" : undefined}
                 />
 
+                <label htmlFor="a11y-email" className="block text-sm font-medium mt-3 mb-1">
+                  Email <span className="font-normal text-neutral-400">(optional — for status updates)</span>
+                </label>
+                <input
+                  id="a11y-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg px-3 py-2 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                />
+
                 {error && (
-                  <p
-                    id="a11y-error"
-                    role="alert"
-                    className="text-xs text-red-600 dark:text-red-400 mt-1"
-                  >
+                  <p id="a11y-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1">
                     {error}
                   </p>
                 )}
