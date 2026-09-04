@@ -15,12 +15,7 @@ export interface A11yFinding {
     id: string;
     investigation: string | null;
     confidence: number | null;
-    proposed_action: {
-      wcag?: string;
-      file?: string;
-      original?: string;
-      patched?: string;
-    } | null;
+    proposed_action: Record<string, unknown> | null;
     applied_at: string | null;
   } | null;
 }
@@ -77,7 +72,13 @@ function FindingCard({ finding }: { finding: A11yFinding }) {
     }
   }
 
-  const action = run?.proposed_action;
+  const action = run?.proposed_action as {
+    wcag?: string;
+    file?: string;
+    original?: string;
+    patched?: string;
+  } | null;
+
   const canDeploy =
     report.status === "fix_proposed" &&
     run &&
@@ -123,7 +124,7 @@ function FindingCard({ finding }: { finding: A11yFinding }) {
           {run.confidence !== null && (
             <p className="text-neutral-400">
               Confidence:{" "}
-              <span className="text-neutral-200">{Math.round(run.confidence * 100)}%</span>
+              <span className="text-neutral-200">{Math.round((run.confidence ?? 0) * 100)}%</span>
             </p>
           )}
 
