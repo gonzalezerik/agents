@@ -21,10 +21,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return Response.json({ error: "this run has no auto-applicable action - it needs a human to do it manually" }, { status: 400 });
   }
 
-  const result = await k8sDeletePod(action.namespace, action.pod);
+  const result = await k8sDeletePod(action.namespace as string, action.pod as string);
   const resultText = result.ok
-    ? `Deleted pod ${action.namespace}/${action.pod} (HTTP ${result.status}) - it will be recreated by its Deployment/ReplicaSet.`
-    : `Failed to delete pod ${action.namespace}/${action.pod} (HTTP ${result.status}).`;
+    ? `Deleted pod ${action.namespace as string}/${action.pod as string} (HTTP ${result.status}) - it will be recreated by its Deployment/ReplicaSet.`
+    : `Failed to delete pod ${action.namespace as string}/${action.pod as string} (HTTP ${result.status}).`;
 
   await markRunApplied(id, resultText, result.ok ? "executed" : "escalated");
 
