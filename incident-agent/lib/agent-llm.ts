@@ -105,9 +105,9 @@ export async function diagnoseA11y(input: {
     const text: string = data?.choices?.[0]?.message?.content ?? "";
 
     const isValidStr = text.match(/IS_VALID:\s*(yes|no)/i)?.[1]?.toLowerCase();
-    const wcagCriterion = text.match(/WCAG_CRITERION:\s*(.+?)(?=\n[A-Z_]+:|$)/s)?.[1]?.trim() ?? "none";
+    const wcagCriterion = text.match(/WCAG_CRITERION:\s*([\s\S]+?)(?=\n[A-Z_]+:|$)/)?.[1]?.trim() ?? "none";
     const analysis = text.match(/ANALYSIS:\s*([\s\S]*?)(?=FILE:|$)/)?.[1]?.trim() ?? text;
-    const file = text.match(/FILE:\s*(.+?)(?=\n[A-Z_]+:|$)/s)?.[1]?.trim() ?? null;
+    const file = text.match(/FILE:\s*([\s\S]+?)(?=\n[A-Z_]+:|$)/)?.[1]?.trim() ?? null;
     const original = text.match(/ORIGINAL:\s*([\s\S]*?)(?=PATCHED:|$)/)?.[1]?.trim() ?? null;
     const patched = text.match(/PATCHED:\s*([\s\S]*?)(?=CONFIDENCE:|$)/)?.[1]?.trim() ?? null;
     const confidenceMatch = text.match(/CONFIDENCE:\s*([\d.]+)/)?.[1];
