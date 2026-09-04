@@ -1,9 +1,7 @@
 import { diagnoseA11y } from "./agent-llm";
 import { fetchForgejoFile } from "./forgejo-client";
-import { insertAgentRun } from "./pg-client";
 import {
-  getA11yReport,
-  insertA11yReport,
+  insertAgentRun,
   linkA11yReportToRun,
   updateA11yReportStatus,
 } from "./pg-client";
@@ -21,11 +19,10 @@ export async function investigateA11yComplaint(payload: {
 
   await updateA11yReportStatus(reportId, "investigating");
 
-  // Feed to LLM for validation + fix generation
   const diagnosis = await diagnoseA11y({ url, description });
 
   if (!diagnosis || !diagnosis.isValid) {
-    const runId = await insertAgentRun({
+    const run = await insertAgentRun({
       entity: `a11y:${reportId}`,
       summary: `A11y report from ${url} dismissed — not a valid WCAG issue`,
       mode: "report-only",
@@ -36,7 +33,7 @@ export async function investigateA11yComplaint(payload: {
       investigation: diagnosis?.analysis ?? "LLM determined this is not a genuine WCAG issue.",
       proposed_action: null,
     });
-    await linkA11yReportToRun(reportId, runId ?? "");
+    await linkA11yReportToRun(reportId, run?.id ?? "");
     await updateA11yReportStatus(reportId, "dismissed");
     await notifyNtfy(
       "A11y report dismissed",
@@ -45,16 +42,10 @@ export async function investigateA11yComplaint(payload: {
     return;
   }
 
-  // If valid, try to fetch the source file to attach the proposed patch
   let sourceContext = "";
   if (diagnosis.file) {
-    const fileResult = await fetchForgejoFile(
-      PORTFOLIO_OWNER,
-      PORTFOLIO_REPO,
-      diagnosis.file
-    );
+    const fileResult = await fetchForgejoFile(PORTFOLIO_OWNER, PORTFOLIO_REPO, diagnosis.file);
     if (fileResult) {
-      // Truncate to avoid massive context in proposed_action JSONB
       sourceContext = fileResult.content.slice(0, 3000);
     }
   }
