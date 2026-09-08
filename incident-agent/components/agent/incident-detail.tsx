@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { StatusIndicator, Status } from "@/components/ui/status-indicator";
+import { StatusPill, Status } from "@/components/ui/status-pill";
 
 interface Incident {
   id: string;

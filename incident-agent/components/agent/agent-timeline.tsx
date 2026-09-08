@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatusIndicator } from "@/components/ui/status-indicator";
+import { StatusPill } from "@/components/ui/status-pill";
 
 interface AgentRun {
   id: string;
@@ -77,7 +77,7 @@ export function AgentTimeline({ refreshKey }: { refreshKey?: number }) {
               </div>
 
               <div className="flex items-center gap-2 mb-2">
-                <StatusIndicator status="agent" size="sm" withLabel={false} />
+                <StatusPill status="agent" size="sm" />
                 <span className="text-sm text-[#D0D6E0]">{run.summary}</span>
                 <span className="px-2 py-0.5 rounded text-xs bg-[#1D1F21] text-[#8A8F98]">{run.entity}</span>
               </div>
