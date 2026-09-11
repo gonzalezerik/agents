@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageShell } from "@/components/ui/page-shell";
 import { AgentTimeline } from "@/components/agent/agent-timeline";
 import { TakeoverModal } from "@/components/agent/takeover-modal";
@@ -70,6 +71,14 @@ export default function AgentCenterPage() {
             Investigates real firing alerts using the homelab&apos;s own LLM (gpuhost) + live pod/event data. Never
             applies a fix without an explicit click.
           </p>
+        </div>
+
+        {/* Orchestrator deep-link */}
+        <div className="mb-6 flex items-center gap-2 text-xs text-[oklch(0.54_0.008_260)]">
+          <span>Active runs powered by</span>
+          <Link href="/orchestrator/graphs" className="text-[oklch(0.7_0.18_240)] hover:underline">incident_investigation graph</Link>
+          <span>&middot;</span>
+          <Link href="/orchestrator/runs" className="text-[oklch(0.7_0.18_240)] hover:underline">View all runs →</Link>
         </div>
 
         {/* Firing alerts - investigate trigger */}
