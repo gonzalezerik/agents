@@ -1,5 +1,6 @@
 import { listA11yReports, getAgentRun } from "@/lib/pg-client";
 import { A11yFindings } from "@/components/a11y/a11y-findings";
+import Link from "next/link";
 import { PageShell } from "@/components/ui/page-shell";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,12 @@ export default async function A11yPage() {
   return (
     <PageShell breadcrumb="Accessibility" title="A11y Reports">
       <div className="max-w-3xl space-y-8">
+        <div className="flex items-center gap-3 text-xs text-[oklch(0.54_0.008_260)] mb-2">
+          <span>Automated fixes run via</span>
+          <Link href="/orchestrator/graphs" className="text-[oklch(0.7_0.18_240)] hover:underline">a11y_fix graph</Link>
+          <span>&middot;</span>
+          <Link href="/orchestrator/runs" className="text-[oklch(0.7_0.18_240)] hover:underline">View runs →</Link>
+        </div>
         <div>
           <p className="text-sm text-[oklch(0.68_0.010_260)] mt-1">
             User-submitted ADA / WCAG complaints from the portfolio widget. The
