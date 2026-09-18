@@ -18,12 +18,22 @@ COPY luna ./luna
 # sentence-transformers (knowledge layer) pulls in torch as a dependency;
 # PyPI's default torch wheel bundles full CUDA/NVIDIA runtime libs (~2.5GB+),
 # which made every one of this monorepo's 4 images huge and blew out registry
-# push timeouts (504/499 errors mid-upload) -- this cluster has no GPU access
-# from these pods anyway. Installing the CPU-only wheel first satisfies pip's
-# dependency resolution for the main install below without ever pulling the
-# CUDA build.
-RUN pip install --no-cache-dir --prefix=/install torch --index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir --prefix=/install .
+# push timeouts (504/499 errors mid-upload on the first real CI run) -- this
+# cluster has no GPU access from these pods anyway. A separate `pip install
+# torch --index-url .../cpu` step BEFORE this one does not work: --prefix
+# installs to a target pip's own resolver doesn't check on a later, separate
+# invocation, so the next `pip install .` re-resolved torch as a fresh
+# transitive dependency of sentence-transformers and pulled the default CUDA
+# wheel right back in (confirmed on this repo's second CI run -- nvidia-cuda-*
+# and triton reappeared in the install log despite the earlier CPU-only
+# install claiming success). Fixed by resolving everything in one pip
+# invocation, with torch pinned to the exact +cpu version string -- that exact
+# string only exists on the CPU index, so there is no ambiguity for the
+# resolver to get wrong.
+RUN pip install --no-cache-dir --prefix=/install \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    torch==2.14.0+cpu .
 
 FROM python:3.11-slim AS runtime
 
