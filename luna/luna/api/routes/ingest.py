@@ -218,6 +218,56 @@ def _resolve_capability(*, event_type: str, command_name: str | None) -> str:
     return COMMAND_TO_CAPABILITY[command_name]
 
 
+async def _run_control_loop_or_503(
+    session: AsyncSession,
+    *,
+    capability: str,
+    trigger_source: str,
+    actor_user: str,
+    event_type: str,
+    initial_data: dict[str, Any],
+):
+    """Wraps `control_loop.run()` so a registered node's failure (most
+    commonly a not-yet-configured integration, e.g. `JiraNotConfiguredError`
+    from a Jira-backed capability with no real site/credentials yet) becomes
+    a clean 503 response instead of an unhandled 500.
+
+    `control_loop._drive()` already marks the `agent_run` row `failed` and
+    persists `ctx.error` before re-raising -- that part of the audit trail
+    is intact regardless of this wrapper. What was missing (a real gap this
+    integration found: the ingest routes were built before any capability
+    module existed to register a node that could actually fail) is turning
+    that re-raised exception into something an API client -- the Discord/Slack
+    bot processes -- can show a human instead of a bare 500. We deliberately
+    still write an `audit_event` for the failure (unlike the happy path,
+    which the caller does after this returns) so every ingest attempt is
+    audited whether it succeeds or not.
+    """
+    try:
+        return await run_control_loop(
+            session,
+            capability=capability,
+            trigger_source=trigger_source,
+            actor_user=actor_user,
+            initial_data=initial_data,
+        )
+    except Exception as exc:  # noqa: BLE001 - translate any node failure into a 503
+        logger.warning(
+            "ingest.%s capability=%s failed: %s", trigger_source, capability, exc
+        )
+        await write_event(
+            session,
+            actor=actor_user,
+            action=f"ingest.{trigger_source}.{event_type}.failed",
+            result_ref=f"capability={capability} error={exc}",
+        )
+        await session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{capability} is not available yet: {exc}",
+        ) from exc
+
+
 @router.post("/discord", response_model=IngestAck, status_code=status.HTTP_202_ACCEPTED)
 async def ingest_discord(
     event: DiscordIngestEvent, session: AsyncSession = Depends(get_db)
@@ -226,11 +276,12 @@ async def ingest_discord(
     capability = _resolve_capability(event_type=event.type, command_name=command_name)
     actor_user = f"discord:{event.user.platform_user_id}"
 
-    ctx = await run_control_loop(
+    ctx = await _run_control_loop_or_503(
         session,
         capability=capability,
         trigger_source="discord",
         actor_user=actor_user,
+        event_type=event.type,
         initial_data={"platform": "discord", **event.model_dump(mode="json")},
     )
     await write_event(
@@ -253,11 +304,12 @@ async def ingest_slack(
     capability = _resolve_capability(event_type=event.type, command_name=command_name)
     actor_user = f"slack:{event.user.platform_user_id}"
 
-    ctx = await run_control_loop(
+    ctx = await _run_control_loop_or_503(
         session,
         capability=capability,
         trigger_source="slack",
         actor_user=actor_user,
+        event_type=event.type,
         initial_data={"platform": "slack", **event.model_dump(mode="json")},
     )
     await write_event(

@@ -22,6 +22,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 
+import luna.capabilities  # noqa: F401 - import registers every control_loop node
 from luna.api.routes import audit, health, ingest, margins, proposals, runs, webhook
 from luna.config import get_settings
 

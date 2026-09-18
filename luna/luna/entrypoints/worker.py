@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import luna.capabilities  # noqa: F401 - import registers every control_loop node
 from luna.workers import poller, scheduler
 
 logging.basicConfig(level=logging.INFO)
