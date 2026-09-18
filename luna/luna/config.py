@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     # --- Internal service auth -----------------------------------------
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
 
+    # --- luna-api base URL, as seen by luna-discord/luna-slack ----------
+    # Not in CONTRACT.md's original env var list -- added by the chat-layer
+    # build (luna/adapters/_api_client.py) because the bot processes are
+    # HTTP clients of their own API (CONTRACT.md: "the bot calls its own
+    # API, not the other way around") and need to know where it lives.
+    # Default matches the in-cluster k8s Service name from CONTRACT.md's
+    # deployment section (namespace `luna`, Service `luna-api`).
+    luna_api_base: str = Field(default="http://luna-api:8000", alias="LUNA_API_BASE")
+
     # --- Object storage (Garage / S3-compatible) ------------------------
     garage_endpoint: str = Field(default="", alias="GARAGE_ENDPOINT")
     garage_access_key_id: str = Field(default="", alias="GARAGE_ACCESS_KEY_ID")
