@@ -1,0 +1,36 @@
+# Multi-stage build for luna-api. CONTRACT.md: python:3.11-slim base,
+# non-root user, runs `python -m luna.entrypoints.api`.
+#
+# Build context is the repo root (so `luna/`, `alembic.ini`, `pyproject.toml`
+# are all reachable) -- e.g. `docker build -f deploy/Dockerfile.api .`.
+
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY luna ./luna
+
+RUN pip install --no-cache-dir --prefix=/install .
+
+FROM python:3.11-slim AS runtime
+
+RUN groupadd --system luna && useradd --system --gid luna --no-create-home luna
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY alembic.ini ./
+COPY luna ./luna
+
+USER luna
+
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+
+CMD ["python", "-m", "luna.entrypoints.api"]
