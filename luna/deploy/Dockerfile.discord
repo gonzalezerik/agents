@@ -1,0 +1,41 @@
+# Multi-stage build for luna-discord. CONTRACT.md: python:3.11-slim base,
+# non-root user, runs `python -m luna.entrypoints.discord_bot`.
+#
+# Build context is the repo root (same shared package as every other luna
+# image) -- e.g. `podman build -f deploy/Dockerfile.discord .`.
+
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libsodium-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY luna ./luna
+
+RUN pip install --no-cache-dir --prefix=/install .
+
+FROM python:3.11-slim AS runtime
+
+# libopus0: needed at runtime by py-cord's voice codec (opus encode/decode)
+# for /record -- PyNaCl's wheel bundles libsodium, but libopus is a separate
+# system library discord.py/py-cord has always required for voice.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libopus0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system luna && useradd --system --gid luna --no-create-home luna
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY luna ./luna
+
+USER luna
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "luna.entrypoints.discord_bot"]

@@ -1,0 +1,35 @@
+# Multi-stage build for luna-slack. CONTRACT.md: python:3.11-slim base,
+# non-root user, runs `python -m luna.entrypoints.slack_bot`.
+#
+# Build context is the repo root (same shared package as every other luna
+# image) -- e.g. `podman build -f deploy/Dockerfile.slack .`.
+
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY luna ./luna
+
+RUN pip install --no-cache-dir --prefix=/install .
+
+FROM python:3.11-slim AS runtime
+
+RUN groupadd --system luna && useradd --system --gid luna --no-create-home luna
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY luna ./luna
+
+USER luna
+
+ENV PYTHONUNBUFFERED=1
+
+# Socket Mode: an outbound WebSocket connection, no port to EXPOSE (see
+# slack_adapter.py's module docstring for how this was verified).
+CMD ["python", "-m", "luna.entrypoints.slack_bot"]
