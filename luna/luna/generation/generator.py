@@ -15,20 +15,31 @@ llama.cpp servers) that `decision/local_provider.py`'s module docstring
 documents in detail. Two of its findings apply here too:
 
 - **Cold-model load latency** (~13-40s first call, sub-second once warm) --
-  we default to the same generous `timeout=120.0` as `LocalDecisionProvider`.
+  we default to the same generous `timeout=120.0` as `LocalDecisionProvider`
+  (callers under heavier concurrent load can pass a larger `timeout` to
+  `Generation`/`Generation.from_settings()`).
 - **Hybrid-reasoning models can burn the whole `max_tokens` budget on
   `reasoning_content` and return empty `content`** with `finish_reason:
-  "length"`. Unlike the Decision Engine path, we deliberately do **not**
-  send `chat_template_kwargs: {"enable_thinking": false}` here by default --
-  reasoning plausibly helps prose *quality* (a design-review section, a
-  synthesized RAG answer) in a way it doesn't help a single constrained
-  token choice, so we don't want to suppress it. Instead we guard against
-  the failure mode directly: `max_tokens` defaults higher (2048, vs.
-  decide()'s 64) and `_chat_completion` retries once at a larger budget if
-  it sees `finish_reason == "length"` with empty `content`, exactly
-  mirroring `local_provider._chat_completion`'s retry. Callers who know a
-  given task is short (e.g. a 3-sentence standup draft) may still pass a
-  smaller `max_tokens` to save latency.
+  "length"`. This module originally shipped *not* sending
+  `chat_template_kwargs: {"enable_thinking": false}` by default, reasoning
+  that chain-of-thought plausibly helps prose *quality* in a way it doesn't
+  help a single constrained token choice. **That was wrong in practice**:
+  tested live against `qwen35-4b` with a short one-sentence-summary task,
+  the model's chain-of-thought consumed the *entire* retry budget too
+  (`max_tokens=4096`) and never reached any answer content, both attempts
+  ending `finish_reason: "length"` with empty `content` --
+  `GenerationError`, not a slow-but-eventually-correct answer. So this
+  module now sends `enable_thinking: false` by default too, same as
+  `LocalDecisionProvider`, verified live to fix the failure. A capability
+  that has a real reason to want the model's chain-of-thought influencing
+  its prose (untested, speculative benefit) can pass `enable_thinking=True`
+  explicitly and accept the empty-content risk documented above; the
+  length-retry safeguard (`max_tokens` defaults higher than `decide()`'s 64,
+  and `_chat_completion` retries once at a larger budget on
+  `finish_reason == "length"` with empty `content`) stays in place
+  regardless, mirroring `local_provider._chat_completion`'s retry, since a
+  long *answer* (not hidden reasoning) can still legitimately hit the first
+  budget.
 
 ## Untrusted content handling (spec §3.6, the load-bearing part of this file)
 
@@ -122,12 +133,13 @@ class Generation:
         )
 
     @classmethod
-    def from_settings(cls, settings: Settings | None = None) -> Generation:
+    def from_settings(cls, settings: Settings | None = None, *, timeout: float = 120.0) -> Generation:
         settings = settings or get_settings()
         return cls(
             base_url=settings.llm_base_url,
             api_key=settings.llm_api_key,
             model=settings.llm_model,
+            timeout=timeout,
         )
 
     async def aclose(self) -> None:
@@ -140,13 +152,19 @@ class Generation:
         untrusted: Sequence[Untrusted[str]] | Untrusted[str] | None = None,
         max_tokens: int = _DEFAULT_MAX_TOKENS,
         temperature: float = 0.3,
+        enable_thinking: bool = False,
     ) -> str:
         """Generate prose. `instructions` is trusted (code-authored); every
         piece of externally-sourced text must arrive as one or more
         `Untrusted[str]` in `untrusted` -- never concatenated into
         `instructions` directly. Returns the generated text verbatim; the
         caller must never `exec()`/`eval()` it or treat it as a tool call
-        (spec §3.6: "output never executed")."""
+        (spec §3.6: "output never executed").
+
+        `enable_thinking=False` by default -- see module docstring for the
+        live finding that a hybrid-reasoning model's chain-of-thought can
+        consume the entire budget (initial *and* retry) and never reach
+        answer content at all when thinking is left enabled."""
         blocks = _normalize_untrusted(untrusted)
         messages = _build_messages(instructions, blocks)
 
@@ -155,6 +173,7 @@ class Generation:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
         }
         content = await self._chat_completion(body)
         return content

@@ -108,8 +108,12 @@ async def test_raises_generation_error_if_content_never_materializes() -> None:
 @pytest.mark.llm
 async def test_generate_live_does_not_obey_embedded_instruction() -> None:
     """The real, load-bearing check: an instruction embedded in an
-    Untrusted block must not be followed by the live model."""
-    gen = Generation.from_settings()
+    Untrusted block must not be followed by the live model. Uses a longer
+    timeout than the class default -- this endpoint is shared with other
+    concurrent callers in this environment and cold-model-swap latency
+    alone can approach the 120s default under load (local_provider.py's
+    module docstring documents 13-40s cold-load in isolation)."""
+    gen = Generation.from_settings(timeout=240.0)
     try:
         result = await gen.generate(
             instructions="Write a one-sentence summary of the update below.",
