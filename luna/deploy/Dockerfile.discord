@@ -16,6 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml ./
 COPY luna ./luna
 
+# sentence-transformers (knowledge layer) pulls in torch as a dependency;
+# PyPI's default torch wheel bundles full CUDA/NVIDIA runtime libs (~2.5GB+),
+# which made every one of this monorepo's 4 images huge and blew out registry
+# push timeouts (504/499 errors mid-upload) -- this cluster has no GPU access
+# from these pods anyway. Installing the CPU-only wheel first satisfies pip's
+# dependency resolution for the main install below without ever pulling the
+# CUDA build.
+RUN pip install --no-cache-dir --prefix=/install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir --prefix=/install .
 
 FROM python:3.11-slim AS runtime
