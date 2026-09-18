@@ -108,3 +108,31 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 def new_uuid() -> uuid.UUID:
     return uuid.uuid4()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_global_db_engine() -> AsyncIterator[None]:
+    """`luna/db/session.py`'s `get_engine()`/`session_scope()` cache one
+    module-level `AsyncEngine` for the whole process -- correct and desired
+    in production (`luna-api`/`luna-worker` run one event loop for their
+    entire lifetime), but a real bug across this test suite: pytest-asyncio
+    gives each test function its own fresh event loop by default, and an
+    asyncpg connection pool is bound to the loop it was created on (see
+    `db_engine`'s own docstring above for the same class of issue in this
+    file's dedicated test engine). Every capability's control-loop `decide`
+    node opens its own session via `session_scope()` (not the injected
+    `db_session` fixture, since production code has no FastAPI dependency
+    injection to lean on there) -- so whichever test runs first binds the
+    global engine to its loop, and every later test that also reaches
+    `session_scope()` gets `RuntimeError: Event loop is closed` /
+    `Future ... attached to a different loop`, unpredictably, depending on
+    test order. Found while merging the Jira, chat, and knowledge layers
+    together, once tests from all three started actually exercising
+    `session_scope()` in the same pytest run. Fixed by disposing the global
+    engine both before and after every test, forcing a fresh one bound to
+    that test's own loop on next use."""
+    from luna.db.session import dispose_engine
+
+    await dispose_engine()
+    yield
+    await dispose_engine()

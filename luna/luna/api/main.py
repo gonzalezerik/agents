@@ -1,7 +1,6 @@
 """FastAPI app factory used by the `luna-api` entrypoint.
 
-Mounts every route module under `luna/api/routes/` as it lands. `rag.py` and
-`packages.py` (knowledge layer) are wired in once merged; `webhook.py` is
+Mounts every route module under `luna/api/routes/`. `webhook.py` is
 conditionally mounted since spec §3.8/3.11 treats Jira webhook mode as an
 opt-in alternative to the default polling path.
 
@@ -23,7 +22,17 @@ from alembic.config import Config
 from fastapi import FastAPI
 
 import luna.capabilities  # noqa: F401 - import registers every control_loop node
-from luna.api.routes import audit, health, ingest, margins, proposals, runs, webhook
+from luna.api.routes import (
+    audit,
+    health,
+    ingest,
+    margins,
+    packages,
+    proposals,
+    rag,
+    runs,
+    webhook,
+)
 from luna.config import get_settings
 
 logger = logging.getLogger("luna.api")
@@ -56,6 +65,8 @@ def create_app() -> FastAPI:
     app.include_router(ingest.router)
     app.include_router(proposals.router)
     app.include_router(margins.router)
+    app.include_router(rag.router)
+    app.include_router(packages.router)
     if get_settings().jira_webhook_mode:
         app.include_router(webhook.router)
 

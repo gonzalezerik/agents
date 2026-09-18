@@ -204,6 +204,37 @@ class IngestAck(BaseModel):
     run_id: uuid.UUID
     capability: str
     status: str
+    result: dict[str, Any] | None = None
+    """Populated from `ctx.data` for capabilities whose `decide` node produces
+    a user-facing answer synchronously within this same request (`rag_qna`,
+    `standup`) -- since `control_loop.run()` is awaited in-process with no
+    real background queue, the result is already known by the time this
+    response is built. `None` for every other capability (proposal-producing
+    or purely read/alert capabilities with nothing to show inline). A real
+    integration gap found and fixed while wiring the chat and knowledge
+    layers together: the Discord/Slack `/ask` and `/standup` commands were
+    routing through here and getting back nothing but a generic "on it" ack
+    with no way to ever see the actual answer -- see
+    `luna/capabilities/rag_qna.py` and `standup.py`'s `decide` node
+    registrations, and `discord_adapter.py`/`slack_adapter.py`'s
+    `handle_simple_command`, which now sends a follow-up message when this
+    field is present."""
+
+
+# Which `ctx.data` keys to surface as `IngestAck.result` per capability --
+# an explicit allowlist rather than dumping all of `ctx.data` (which also
+# carries the raw inbound event payload, not just the capability's output).
+_RESULT_KEYS: dict[str, tuple[str, ...]] = {
+    "rag_qna": ("answer", "citations", "sufficient"),
+    "standup": ("team_summary", "member_count", "action_item_proposal_ids"),
+}
+
+
+def _extract_result(capability: str, data: dict[str, Any]) -> dict[str, Any] | None:
+    keys = _RESULT_KEYS.get(capability)
+    if not keys:
+        return None
+    return {k: data[k] for k in keys if k in data}
 
 
 def _resolve_capability(*, event_type: str, command_name: str | None) -> str:
@@ -293,7 +324,12 @@ async def ingest_discord(
     )
     await session.commit()
     logger.info("ingest.discord accepted run_id=%s capability=%s", ctx.run_id, capability)
-    return IngestAck(run_id=ctx.run_id, capability=capability, status=ctx.status.value)
+    return IngestAck(
+        run_id=ctx.run_id,
+        capability=capability,
+        status=ctx.status.value,
+        result=_extract_result(capability, ctx.data),
+    )
 
 
 @router.post("/slack", response_model=IngestAck, status_code=status.HTTP_202_ACCEPTED)
@@ -321,4 +357,9 @@ async def ingest_slack(
     )
     await session.commit()
     logger.info("ingest.slack accepted run_id=%s capability=%s", ctx.run_id, capability)
-    return IngestAck(run_id=ctx.run_id, capability=capability, status=ctx.status.value)
+    return IngestAck(
+        run_id=ctx.run_id,
+        capability=capability,
+        status=ctx.status.value,
+        result=_extract_result(capability, ctx.data),
+    )

@@ -71,19 +71,46 @@ def _require_status(proposal: Proposal, expected: ProposalStatus) -> None:
         )
 
 
+async def _apply_confirmed_proposal(session: AsyncSession, proposal: Proposal, *, actor: str) -> None:
+    """Dispatches by `proposal.kind` to whichever apply strategy that
+    capability actually uses.
+
+    `status_intake`'s `"status_transition"` kind (and any future capability
+    using the same pattern) parks its *entire* `agent_run` at
+    `RunStatus.apply` after `gate` and expects `control_loop.resume()` to
+    finish it -- see `capabilities/status_intake.py`'s module docstring.
+    `meeting_action_items`'s `"meeting_action_item"` kind does not fit that
+    shape: one run's `plan` step can write a *batch* of independent
+    proposals (one per transcript candidate), each confirmed separately (or
+    via "confirm all"), and that run already reached `completed` right after
+    `gate` (the capability registers only `decide`/`plan`/`gate` -- see its
+    module docstring on why). `control_loop.resume()` on an already-terminal
+    run is a documented no-op, not an error, so calling it here for this
+    kind would return 200 without ever creating the Jira issue -- a real
+    integration gap found wiring this capability to this route, fixed by
+    dispatching to its own `apply_meeting_action_item()` instead. Add a new
+    branch here for any future capability whose proposals don't fit
+    `status_intake`'s single-proposal-per-run shape."""
+    if proposal.kind == "meeting_action_item":
+        from luna.capabilities.meeting_action_items import apply_meeting_action_item
+
+        await apply_meeting_action_item(session, proposal, actor=actor)
+        return
+    await resume_with_session(session, proposal.run_id)
+
+
 @router.post("/{proposal_id}/confirm", response_model=ProposalOut)
 async def confirm_proposal(
     proposal_id: uuid.UUID, body: ConfirmBody, session: AsyncSession = Depends(get_db)
 ) -> Proposal:
-    """Sets `Proposal.status = confirmed`, then resumes the owning
-    `agent_run` via the real `control_loop.resume()` -- see
-    `capabilities/status_intake.py`'s module docstring for why `agent_run` is
-    always sitting at `RunStatus.apply` (or a later capability's own
-    equivalent gate point) at this moment. If Apply/Verify raise, the
-    partial-failure checkpoint that `control_loop`'s own exception handling
-    already flushed is committed before the error is surfaced, so the
-    `agent_run`/`proposal` rows reflect reality rather than silently rolling
-    back a real (attempted) Jira write record."""
+    """Sets `Proposal.status = confirmed`, then applies it via
+    `_apply_confirmed_proposal()` (dispatched by `proposal.kind` -- see that
+    function's docstring for why this isn't a single uniform
+    `control_loop.resume()` call). If the apply raises, the partial-failure
+    checkpoint that `control_loop`'s own exception handling already flushed
+    (for the `resume()` path) is committed before the error is surfaced, so
+    the `agent_run`/`proposal` rows reflect reality rather than silently
+    rolling back a real (attempted) Jira write record."""
     proposal = await _get_proposal_or_404(session, proposal_id)
     _require_status(proposal, ProposalStatus.pending)
 
@@ -99,7 +126,7 @@ async def confirm_proposal(
     )
 
     try:
-        await resume_with_session(session, proposal.run_id)
+        await _apply_confirmed_proposal(session, proposal, actor=body.actor)
     except Exception as exc:
         await session.commit()
         raise HTTPException(

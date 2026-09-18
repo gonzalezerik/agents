@@ -306,12 +306,19 @@ def test_item6_grep_matches_ripgrep_reality() -> None:
         pytest.skip("luna/capabilities/ does not exist yet in this worktree")
 
     result = subprocess.run(
-        ["grep", "-rl", "-E", r"\.generate\(", str(capabilities_dir)],
+        ["grep", "-rl", "-E", "--include=*.py", r"\.generate\(", str(capabilities_dir)],
         capture_output=True,
         text=True,
     )
     generate_callers = [line for line in result.stdout.splitlines() if line]
     for f in generate_callers:
+        # --include=*.py already excludes __pycache__/*.pyc, but be defensive
+        # about it -- this test found a real bug once (a stray compiled
+        # bytecode file made grep -rl match a binary, and read_text() blew up
+        # decoding it as UTF-8 instead of the check just skipping a non-.py
+        # file), so don't let a second one slip back in unnoticed.
+        if not f.endswith(".py"):
+            continue
         content = Path(f).read_text()
         assert (
             ".decide(" in content or "decide_one(" in content or "decide_many(" in content

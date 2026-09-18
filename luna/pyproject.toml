@@ -20,6 +20,9 @@ dependencies = [
     # davey so voice connect actually works, not just app-command/modal code.
     "py-cord[voice]>=2.8",
     "slack-bolt>=1.30",
+    # --- Knowledge layer (luna/adapters/transcript.py, capabilities/rag_qna.py) ---
+    "faster-whisper>=1.0",
+    "sentence-transformers>=3.0",
     # Garage (S3-compatible) upload for the /record voice-recording handoff
     # (discord_adapter.py's upload_recording_to_garage) -- GARAGE_* config
     # already existed in luna/config.py, this is the client that uses it.

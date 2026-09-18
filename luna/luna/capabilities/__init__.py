@@ -24,6 +24,10 @@ from . import (  # noqa: F401 - imported for registration side effects
     blocker_dependency,
     budget_watcher,
     deadline_reminders,
+    design_review,
+    meeting_action_items,
+    rag_qna,
+    standup,
     status_intake,
 )
 
@@ -31,5 +35,9 @@ __all__ = [
     "blocker_dependency",
     "budget_watcher",
     "deadline_reminders",
+    "design_review",
+    "meeting_action_items",
+    "rag_qna",
+    "standup",
     "status_intake",
 ]

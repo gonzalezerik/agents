@@ -251,11 +251,17 @@ async def test_ingest_slack_modal_submit_requires_modal_field(
 async def test_ingest_slack_channel_id_is_optional(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
+    # Uses "ask" (rag_qna) rather than "standup" (Jira-backed, same known
+    # gap as the discord tests above) -- this test's actual point is that
+    # `channel_id` can be omitted from the request body, not any particular
+    # capability's business behavior. rag_qna needs no Jira: with nothing
+    # indexed yet it still completes normally with an honest "I don't know"
+    # answer (see rag_qna.answer_question's empty-retrieval path).
     payload = {
         "type": "slash_command",
         "team_id": "T1",
         "user": {"platform_user_id": "U1"},
-        "command": {"name": "standup", "options": {}},
+        "command": {"name": "ask", "options": {"question": "what is the mass budget?"}},
     }
     resp = await client.post("/ingest/slack", json=payload, headers=auth_headers)
     assert resp.status_code == 202
