@@ -15,43 +15,12 @@ several agents below are deployed but can't reach a model.
 |---|---|---|
 | [`luna/`](luna/) | Agentic layer over Jira, Discord and Slack for a student lunar rover team. Typed decisions only (choose / score / yes-no), human-confirmed writes, risk manager. | Code and tests complete for v1; not deployed (no Jira site or bot tokens yet). Recorded voice is uploaded but never transcribed. |
 | [`a11y-agent/`](a11y-agent/) | Visitors report accessibility barriers on my site; an agent triages each report against a WCAG 2.2 criterion, proposes a patch, and a human approves the deploy. | Widget live. Agent deployed but broken: its model endpoint is down, and a failed model call currently dismisses the report. See its README. |
+| [`incident-agent/`](incident-agent/) | When a Kubernetes alert fires: gathers pod state and events, asks a model for root cause and a fix, and offers one-click approval of the only allowed action (restart a pod); escalates to a human otherwise. | Deployed in my ops dashboard; model endpoint down, so every run escalates (correctly). |
+| [`graph-runtime/`](graph-runtime/) | Typed node graphs with Postgres checkpoints and human-approval interrupts; three graphs (incident investigation, a11y fix, generate-evaluate), MCP tool servers, an eval runner. | Running and healthy, but only ever used for manual test runs; its model backend is gone. |
+| [`cephlapod/`](cephlapod/) | Orchestration harness for coding agents on a local model pool: Anthropic↔OpenAI shim with tool-call repair and a router model, GPU-host agent that starts and stops models, reconciler with preemption. 93 characterization tests. | Not running since the GPU-server rebuild. |
+| [`leviathan/`](leviathan/) | News-intelligence dashboard: clusters RSS stories with a small model, rates supply-chain risk with a larger one, two-role synthesis on a 3D globe. | Deployed; both model endpoints down. |
 
 ## Not published yet
-
-### Ops incident-investigation agent
-Part of my private ops dashboard. Collects context for an alert (pod status and
-recent Kubernetes events), asks a model for root cause, a proposed fix and a confidence,
-records everything in an audit log, and offers one-click apply or a manual
-takeover. Has eval cases.
-- **State:** deployed with the dashboard; its model endpoint is down, so
-  diagnoses currently fail.
-- **Left:** extract it with history the same way as `a11y-agent/` (it
-  shares the audit-log and LLM modules); move its free-text answer parsing
-  to schema-constrained output; decide whether it runs on the graph runtime
-  below.
-
-### Graph runtime with human-approval interrupts
-A small Python engine that runs typed node graphs with checkpointing and
-pauses for human approval before risky steps. Ships one graph (incident
-investigation); the eval files target it.
-- **State:** code exists, but nothing deploys or runs it right now.
-- **Left:** decide whether it becomes the shared runtime for the ops agents
-  (and how it relates to LUNA's control loop); add tests; extract.
-
-### LLM orchestration harness
-The routing layer that let coding agents talk to a pool of local models:
-an Anthropic-Messages-to-OpenAI translation shim with a model router and
-tool-call repair, a model-pool manager that starts and stops models to fit
-GPU memory (with preemption), and a dashboard reconciler. 34 TypeScript and
-59 Python characterization tests already exist.
-- **State:** not running since the GPU server rebuild. The source survives
-  only in a pre-rebuild snapshot and a server backup directory; part of it
-  was never in version control.
-- **Left:** get every piece into git first. Then the planned extraction:
-  stages B–H after the completed stage A (characterization tests), fixing
-  the three bugs stage A found (dead `restore` action, user text dropped
-  when a message mixes text and tool results, a VRAM-gap check that can
-  never trigger).
 
 ### Small-business assistant + sandboxed coding agent
 For a booking app I built for a small beauty business. An admin assistant
@@ -92,13 +61,6 @@ baselines, leakage checks, ONNX export. A smoke run completed.
 - **Left:** remove the build spec references, finish a real training run,
   and wire LUNA-Decide in as a `DecisionProvider`. Would live next to
   `luna/`.
-
-### News-clustering engine
-Pulls RSS feeds by region, uses one small model to group headlines into
-topics and a larger one to synthesize them.
-- **State:** deployed, but both model endpoints are down.
-- **Left:** point it at the current model server; decide if it's an agent
-  or just an LLM pipeline (no tools, no decisions).
 
 ### Rover onboard assistant
 On the rover's Jetson: a local model router with several small models and a

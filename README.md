@@ -7,6 +7,10 @@ its own README, dependencies and tests.
 |---|---|---|
 | [`luna/`](luna/) | Local-first agentic layer over Jira, Discord and Slack for a student lunar rover team: status intake, standups, meeting action items, blocker/budget alerts, Q&A with citations, design-review drafts, deadline reminders, and a risk manager. | Work in progress, not deployed |
 | [`a11y-agent/`](a11y-agent/) | Visitors report accessibility barriers; an agent triages each report against a WCAG 2.2 success criterion and proposes a patch that a human approves before it deploys. | Work in progress: widget live, agent currently broken (see its README) |
+| [`incident-agent/`](incident-agent/) | Kubernetes alert investigation with one narrowly-scoped, human-approved action. | Work in progress |
+| [`graph-runtime/`](graph-runtime/) | Checkpointed agent graphs with human-approval interrupts. | Work in progress |
+| [`cephlapod/`](cephlapod/) | Orchestration harness for coding agents on a pool of local models. | Work in progress, not running |
+| [`leviathan/`](leviathan/) | Multi-model news clustering and risk rating. | Work in progress |
 
 Shared rule across these agents: the model only answers typed questions
 (choose, score, yes/no) with probabilities; code owns the math, control flow
