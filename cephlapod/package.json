@@ -1,0 +1,16 @@
+{
+  "name": "cephlapod",
+  "private": true,
+  "description": "Local-model orchestration harness: model pool reconciler, preemption, Anthropic<->OpenAI shim",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

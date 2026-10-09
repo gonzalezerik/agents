@@ -1,0 +1,17 @@
+[Unit]
+Description=Mission Control Agent (mc-agent)
+After=network.target
+
+[Service]
+Type=simple
+User=erikg
+WorkingDirectory=/opt/mc-agent
+Environment=MC_HOST_ID=gpuhost
+Environment=MC_AGENT_PORT=4001
+EnvironmentFile=-/etc/mc-agent.env
+ExecStart=/opt/mc-agent/venv/bin/python agent.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
