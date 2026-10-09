@@ -1,0 +1,39 @@
+{
+  "graph_id": "a11y_fix",
+  "version": "0.1.0",
+  "description": "Eval set for a11y_fix: verify reports are audited correctly and valid ones generate patches.",
+  "tasks": [
+    {
+      "id": "contrast_valid",
+      "description": "Low contrast text report should be classified as valid",
+      "initial_state": {
+        "report_id": "eval-r001",
+        "report": {
+          "url": "https://erikgonzalez.dev/portfolio",
+          "description": "The gray text #888888 on white background fails WCAG 1.4.3 minimum contrast ratio of 4.5:1. Contrast ratio is approximately 3.5:1.",
+          "user_agent": "Mozilla/5.0 (eval)"
+        }
+      },
+      "contract": {
+        "state_contains": { "classification": "valid" },
+        "status_not": ["failed"]
+      }
+    },
+    {
+      "id": "spam_dismissed",
+      "description": "Non-accessibility complaint should be dismissed",
+      "initial_state": {
+        "report_id": "eval-r002",
+        "report": {
+          "url": "https://erikgonzalez.dev",
+          "description": "I don't like the font choice. Please use Comic Sans.",
+          "user_agent": "Mozilla/5.0 (eval)"
+        }
+      },
+      "contract": {
+        "state_contains": { "classification": "dismissed" },
+        "status_not": ["failed"]
+      }
+    }
+  ]
+}
