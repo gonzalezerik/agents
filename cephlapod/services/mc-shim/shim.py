@@ -53,6 +53,15 @@ async def _running_models() -> dict[str, int]:
             return {}
 
 
+def _get_pool() -> list[dict]:
+    """Return the full routing pool from state.db (includes heartbeat hosts)."""
+    try:
+        import router as routing_mod
+        return routing_mod.get_pool_from_state_db()
+    except Exception:
+        return []
+
+
 # ── SSE helpers ───────────────────────────────────────────────────────────────
 
 def _sse(event: str, data: dict) -> str:
@@ -70,7 +79,7 @@ async def _keepalive_pings(interval: float = 20.0) -> AsyncIterator[str]:
 
 async def _stream_response(
     session_id: str,
-    agent_port: int,
+    agent_base: str,
     agent_model_id: str,
     oai_body: dict[str, Any],
     anthropic_body: dict[str, Any],
@@ -102,7 +111,7 @@ async def _stream_response(
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST",
-                f"http://127.0.0.1:{agent_port}/v1/chat/completions",
+                f"{agent_base}/v1/chat/completions",
                 json=oai_body,
                 headers={"Content-Type": "application/json"},
             ) as resp:
@@ -213,41 +222,52 @@ async def messages(
     running = await _running_models()
 
     if is_passthrough or not running:
-        # Direct forward to first available model
-        if not running:
+        # Direct forward — use pinned model_id if one was specified
+        passthrough_models: dict[str, str] = app.state.passthrough_models if hasattr(app.state, "passthrough_models") else {}
+        target_mid = passthrough_models.get(session_id) if is_passthrough else None
+        # Try pool first (supports heartbeat hosts)
+        pool_all = _get_pool()
+        chosen_pass = next((a for a in pool_all if a["model_id"] == target_mid), None) if target_mid else None
+        if chosen_pass:
+            agent_bridge = chosen_pass.get("bridge_url")
+            agent_port   = chosen_pass.get("port", FALLBACK_ORCH_PORT)
+            agent_model_id = chosen_pass["model_id"]
+        elif running:
+            fallback_model_id, fallback_port = next(iter(running.items()))
+            agent_model_id = fallback_model_id
+            agent_bridge   = None
+            agent_port     = fallback_port
+        else:
             raise HTTPException(503, "No models running")
-        fallback_model_id, fallback_port = next(iter(running.items()))
         event_log.log(session_id, "passthrough_forward", {
-            "model_id": fallback_model_id, "port": fallback_port,
+            "model_id": agent_model_id, "port": agent_port,
             "reason": "passthrough mode" if is_passthrough else "no orchestrator",
         })
         oai_body = translator.anthropic_to_openai({**body, "stream": True})
-        agent_model_id = fallback_model_id
-        agent_port = fallback_port
     else:
-        # Build agent list from running models with registry capabilities
-        agents = []
-        for mid, port in running.items():
-            # Minimal capability info — mc-agent could enrich this
-            agents.append({"model_id": mid, "port": port, "specialties": [], "tool_calling": "unverified"})
+        # Build agent list from state.db (includes heartbeat hosts like laptop)
+        pool = _get_pool()
+        if not pool:
+            pool = [{"model_id": mid, "port": port, "bridge_url": None,
+                     "specialties": [], "tool_calling": "unverified"}
+                    for mid, port in running.items()]
 
-        chosen_id, reason, plan_latency = routing.route(messages_list, agents, session_id)
+        chosen_id, reason, plan_latency = routing.route(messages_list, pool, session_id)
 
-        if not chosen_id or chosen_id not in running:
-            # Fall back to first running model
-            chosen_id, agent_port = next(iter(running.items()))
-            event_log.log(session_id, "error", {
-                "phase": "routing", "message": f"Orchestrator chose {chosen_id!r} which is not running; falling back",
-            })
-        else:
-            agent_port = running[chosen_id]
-
+        chosen_entry = next((a for a in pool if a["model_id"] == chosen_id), None)
+        if not chosen_entry:
+            if not pool:
+                raise HTTPException(503, "No models in pool")
+            chosen_entry = pool[0]
+            chosen_id = chosen_entry["model_id"]
+        agent_bridge = chosen_entry.get("bridge_url")
+        agent_port   = chosen_entry.get("port", FALLBACK_ORCH_PORT)
         agent_model_id = chosen_id
         oai_body = translator.anthropic_to_openai({**body, "stream": True})
 
     async def event_stream():
         async for chunk in _stream_response(
-            session_id, agent_port, agent_model_id,
+            session_id, agent_bridge or f"http://127.0.0.1:{agent_port}", agent_model_id,
             oai_body, body, message_id, input_tokens_est,
         ):
             yield chunk
@@ -270,13 +290,21 @@ from pydantic import BaseModel
 class PassthroughReq(BaseModel):
     session_id: str
     enabled: bool
+    model_id: str | None = None
 
 @app.post("/shim/passthrough")
 def set_passthrough(req: PassthroughReq, authorization: Annotated[str | None, Header()] = None):
     _check_auth(authorization)
     if not hasattr(app.state, "passthrough"):
         app.state.passthrough = {}
+    if not hasattr(app.state, "passthrough_models"):
+        app.state.passthrough_models = {}
     app.state.passthrough[req.session_id] = req.enabled
+    if req.model_id is not None:
+        if req.enabled:
+            app.state.passthrough_models[req.session_id] = req.model_id
+        else:
+            app.state.passthrough_models.pop(req.session_id, None)
     return {"ok": True}
 
 

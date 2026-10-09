@@ -14,6 +14,9 @@ import launcher
 from config import TOKEN, HOST_ID
 
 app = FastAPI(title="mc-agent", version="0.1.0")
+import orchestrator as orch_mod
+app.include_router(orch_mod.router)
+
 
 VERSION = "0.1.0"
 
@@ -71,6 +74,18 @@ def models_start(req: StartRequest):
     return {"pid": pid}
 
 
+@app.get("/models/registry", dependencies=[Auth])
+def models_registry():
+    """All registered models from state.db (not just running ones)."""
+    import sqlite3, json as _json
+    from config import DB_PATH
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    rows = db.execute("SELECT * FROM models").fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
 @app.post("/models/stop", dependencies=[Auth])
 def models_stop(req: StopRequest):
     found = launcher.stop(req.model_id, req.reason)
@@ -121,7 +136,16 @@ def list_sessions(limit: int = 100):
     if not conn:
         return []
     rows = conn.execute(
-        "SELECT * FROM sessions ORDER BY last_seen DESC LIMIT ?", (limit,)
+        "SELECT s.*,"
+        " COALESCE(SUM(CASE WHEN e.event_type = 'agent_selected' THEN 1 ELSE 0 END), 0) AS decisions,"
+        " COALESCE(SUM(CASE WHEN e.event_type = 'repair' THEN 1 ELSE 0 END), 0) AS tool_repairs,"
+        " (SELECT json_extract(e2.payload, '$.model_id') FROM session_events e2"
+        "  WHERE e2.session_id = s.id AND e2.event_type = 'agent_selected'"
+        "  ORDER BY e2.id DESC LIMIT 1) AS current_agent"
+        " FROM sessions s"
+        " LEFT JOIN session_events e ON s.id = e.session_id"
+        " GROUP BY s.id ORDER BY s.last_seen DESC LIMIT ?",
+        (limit,)
     ).fetchall()
     return [dict(r) for r in rows]
 
