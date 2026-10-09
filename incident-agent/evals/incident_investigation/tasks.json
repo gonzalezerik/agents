@@ -1,0 +1,65 @@
+{
+  "graph_id": "incident_investigation",
+  "version": "0.1.0",
+  "description": "Eval set for incident_investigation: given a synthetic alert, verify the graph classifies correctly and proposes a valid action.",
+  "tasks": [
+    {
+      "id": "crash_loop_restart",
+      "description": "CrashLoopBackOff pod should be classified as proposed_fix→restart_pod",
+      "initial_state": {
+        "alert": {
+          "alertname": "PodCrashLooping",
+          "pod_name": "eval-crash-pod",
+          "namespace": "mission-control",
+          "severity": "critical",
+          "summary": "Pod is crash-looping with exit code 137 (OOM)"
+        }
+      },
+      "contract": {
+        "state_contains": {
+          "classification": "proposed_fix"
+        },
+        "proposal_type": "restart_pod",
+        "status_not": ["failed"]
+      }
+    },
+    {
+      "id": "image_pull_error_escalate",
+      "description": "ImagePullBackOff due to missing registry credentials should escalate",
+      "initial_state": {
+        "alert": {
+          "alertname": "PodImagePullError",
+          "pod_name": "eval-pull-pod",
+          "namespace": "mission-control",
+          "severity": "high",
+          "summary": "Failed to pull image: unauthorized (registry credentials expired)"
+        }
+      },
+      "contract": {
+        "state_contains": {
+          "classification": "escalate"
+        },
+        "status_not": ["failed"]
+      }
+    },
+    {
+      "id": "resource_pressure_note",
+      "description": "High CPU usage without crash should classify as note",
+      "initial_state": {
+        "alert": {
+          "alertname": "HighCPUUsage",
+          "pod_name": "eval-cpu-pod",
+          "namespace": "mission-control",
+          "severity": "warning",
+          "summary": "CPU usage at 92% for 15 minutes, no restarts"
+        }
+      },
+      "contract": {
+        "state_contains": {
+          "classification": "note"
+        },
+        "status_not": ["failed"]
+      }
+    }
+  ]
+}
