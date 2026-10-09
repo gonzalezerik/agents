@@ -72,7 +72,8 @@ these -- do not change without updating CONTRACT.md and this docstring)
 ```
 Slash-command names currently routed: `status` -> `status_intake`,
 `ask` -> `rag_qna`, `standup` -> `standup`, `record` -> `meeting_action_items`,
-`blockers` -> `blocker_dependency`, `budget` -> `budget_watcher`.
+`blockers` -> `blocker_dependency`, `budget` -> `budget_watcher`,
+`risks` -> `risk_manager`.
 `modal_submit` events must carry both `command` (the originating slash
 command) and `modal`. `voice_recording` events are the `/record` handoff --
 see `luna/adapters/discord_adapter.py`'s module docstring for the full
@@ -112,7 +113,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luna.api.deps import get_db, require_service_token
 from luna.audit import write_event
-from luna.control_loop import run as run_control_loop
+from luna.capabilities._session import run_with_session as run_control_loop
 
 logger = logging.getLogger("luna.api.ingest")
 
@@ -131,6 +132,7 @@ COMMAND_TO_CAPABILITY: dict[str, str] = {
     "record": "meeting_action_items",
     "blockers": "blocker_dependency",
     "budget": "budget_watcher",
+    "risks": "risk_manager",
 }
 
 VOICE_RECORDING_CAPABILITY = "meeting_action_items"
@@ -227,6 +229,7 @@ class IngestAck(BaseModel):
 _RESULT_KEYS: dict[str, tuple[str, ...]] = {
     "rag_qna": ("answer", "citations", "sufficient"),
     "standup": ("team_summary", "member_count", "action_item_proposal_ids"),
+    "risk_manager": ("summary_markdown", "findings", "milestones", "proposal_ids"),
 }
 
 

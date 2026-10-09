@@ -5,6 +5,9 @@ loop is fine for v1, no need for a heavyweight scheduler library."
 tick as part of its own change-detection loop; this scheduler additionally
 drives #8 on a much longer interval of its own, since day-granularity
 deadline reminders don't need anywhere near that polling frequency.
+It also runs capability #9's read-only risk review on the same tick, so
+the latest review is always in `agent_run` for whoever asks (`/risks`
+reruns it on demand).
 """
 
 from __future__ import annotations
@@ -12,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from luna.capabilities import deadline_reminders
+from luna.capabilities import deadline_reminders, risk_manager
 from luna.db.session import session_scope
 
 logger = logging.getLogger("luna.worker.scheduler")
@@ -30,4 +33,9 @@ async def run_forever(
                 await deadline_reminders.check(session, project_key=project_key)
         except Exception:
             logger.exception("scheduler: deadline_reminders check failed")
+        try:
+            async with session_scope() as session:
+                await risk_manager.review(session, project_key=project_key)
+        except Exception:
+            logger.exception("scheduler: risk_manager review failed")
         await asyncio.sleep(interval_seconds)

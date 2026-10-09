@@ -76,7 +76,7 @@ from luna.config import get_settings
 
 logger = logging.getLogger("luna.adapters.slack")
 
-SLASH_COMMANDS = ("status", "ask", "standup", "record", "blockers", "budget")
+SLASH_COMMANDS = ("status", "ask", "standup", "record", "blockers", "budget", "risks")
 STATUS_MODAL_CALLBACK_ID = "status_modal"
 PROPOSAL_EDIT_CALLBACK_PREFIX = "proposal_edit_modal:"
 PROPOSAL_EDIT_CALLBACK_PATTERN = re.compile(r"^" + re.escape(PROPOSAL_EDIT_CALLBACK_PREFIX))

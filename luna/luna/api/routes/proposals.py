@@ -96,6 +96,11 @@ async def _apply_confirmed_proposal(session: AsyncSession, proposal: Proposal, *
 
         await apply_meeting_action_item(session, proposal, actor=actor)
         return
+    if proposal.kind in ("risk_new", "risk_update"):
+        from luna.capabilities.risk_manager import apply_risk_proposal
+
+        await apply_risk_proposal(session, proposal, actor=actor)
+        return
     await resume_with_session(session, proposal.run_id)
 
 

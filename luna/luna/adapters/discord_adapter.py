@@ -148,7 +148,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("luna.adapters.discord")
 
-SLASH_COMMANDS = ("status", "ask", "standup", "record", "blockers", "budget")
+SLASH_COMMANDS = ("status", "ask", "standup", "record", "blockers", "budget", "risks")
 
 # guild_id (or "dm") -> the VoiceClient currently recording there. In-process
 # only; fine for a single bot instance, per this module's docstring.
@@ -628,3 +628,16 @@ def register_commands(bot: commands.Bot, api_client: LunaAPIClient) -> None:
     @bot.slash_command(name="budget", description="Show current budget/margin status")
     async def budget_cmd(ctx: discord.ApplicationContext) -> None:
         await handle_simple_command(ctx.interaction, api_client, command_name="budget", options={})
+
+    @bot.slash_command(
+        name="risks", description="Risk review, or paste notes to draft new risk proposals"
+    )
+    async def risks_cmd(
+        ctx: discord.ApplicationContext,
+        notes: discord.Option(  # type: ignore[valid-type]
+            str, "Meeting/design notes to scan for new risks (leave empty for the review)", required=False, default=""
+        ),
+    ) -> None:
+        await handle_simple_command(
+            ctx.interaction, api_client, command_name="risks", options={"notes": notes}
+        )

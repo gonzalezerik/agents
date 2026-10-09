@@ -27,6 +27,7 @@ from . import (  # noqa: F401 - imported for registration side effects
     design_review,
     meeting_action_items,
     rag_qna,
+    risk_manager,
     standup,
     status_intake,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "design_review",
     "meeting_action_items",
     "rag_qna",
+    "risk_manager",
     "standup",
     "status_intake",
 ]
