@@ -38,17 +38,16 @@ class Settings(BaseSettings):
 
     # --- Decision Engine / local LLM -----------------------------------
     # Real, reachable cluster endpoint -- defaults point at it so the JEV
-    # conformance tests work out of the box with no .env required. See
+    # conformance tests only need LLM_API_KEY set. See
     # luna/decision/local_provider.py's module docstring for exactly what
     # this endpoint does and doesn't support.
     llm_base_url: str = Field(
         default="http://localhost:8080/v1",
         alias="LLM_BASE_URL",
     )
-    llm_api_key: str = Field(
-        default="",
-        alias="LLM_API_KEY",
-    )
+    # Never default a real key here: set LLM_API_KEY in the environment
+    # (luna-app-secrets in the cluster, a local .env for tests).
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_model: str = Field(default="qwen35-4b", alias="LLM_MODEL")
 
     decision_provider: str = Field(default="local", alias="DECISION_PROVIDER")
