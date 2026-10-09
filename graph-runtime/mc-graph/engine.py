@@ -4,7 +4,12 @@ from typing import Any, Optional
 import asyncpg
 
 from store import Store
-from tools import (k8s_gather_context, k8s_restart_pod, k8s_check_pod_health, llm_call)
+from tools import (
+    k8s_gather_context, k8s_restart_pod, k8s_check_pod_health, llm_call,
+    forgejo_fetch_source, forgejo_commit_patch, forgejo_trigger_build,
+    k8s_rollout_deployment, k8s_check_deployment_ready,
+    notify_reporter, studio_generate, studio_evaluate,
+)
 
 def _now():
     from datetime import datetime, timezone
@@ -137,6 +142,7 @@ class GraphEngine:
     async def _exec_tool(self, node: dict, state: dict, span_id: str) -> tuple[dict, None]:
         tool_name = node["tool"]
         output_key = node.get("output_key", "result")
+
         if tool_name == "k8s_gather_context":
             alert = state.get("alert", {})
             pod = alert.get("pod") or alert.get("pod_name")
@@ -146,8 +152,39 @@ class GraphEngine:
             proposal = state.get("proposal", {})
             result = await k8s_restart_pod(
                 proposal.get("pod", ""), proposal.get("namespace", "mission-control"))
+        elif tool_name == "k8s_rollout_deployment":
+            result = await k8s_rollout_deployment(**state)
+        elif tool_name == "forgejo_fetch_source":
+            audit = state.get("audit_result", {}) or {}
+            element = audit.get("affected_element", "")
+            # try to infer a file path from the audit result; default to globals.css
+            file_path = state.get("source_file", "app/globals.css")
+            result = await forgejo_fetch_source(file_path)
+        elif tool_name == "forgejo_commit_patch":
+            patch = state.get("patch", {}) or {}
+            result = await forgejo_commit_patch(
+                file=patch.get("file", ""),
+                diff=patch.get("diff", ""),
+                explanation=patch.get("explanation", "a11y fix"),
+            )
+        elif tool_name == "forgejo_trigger_build":
+            result = await forgejo_trigger_build()
+        elif tool_name == "notify_reporter":
+            result = await notify_reporter(
+                report_id=state.get("report_id"),
+                verdict=state.get("verdict"),
+                commit_result=state.get("commit_result"),
+            )
+        elif tool_name == "studio_generate":
+            result = await studio_generate(
+                prompt=state.get("prompt", ""),
+                parameters=state.get("parameters"),
+            )
+        elif tool_name == "studio_evaluate":
+            result = await studio_evaluate(generated=state.get("generated"))
         else:
             result = {"error": f"Unknown tool: {tool_name}"}
+
         await self.store.end_span(span_id, "ok", tool_name=tool_name)
         return {output_key: result}, None
 
@@ -214,20 +251,46 @@ class GraphEngine:
         must = contract.get("must", [])
         must_not = contract.get("must_not", [])
         output_key = node.get("output_key", "verdict")
-        proposal = state.get("proposal", {})
-        pod = proposal.get("pod", "")
-        ns = proposal.get("namespace", "mission-control")
-        health = await k8s_check_pod_health(pod, ns)
         verdict = "pass"
         failed_contract = None
-        for check in must:
-            if check == "pod_running" and not health.get("ready", False):
-                verdict = "fail"
-                failed_contract = f"must: {check}"
-        for check in must_not:
-            if check == "crash_loop" and health.get("restarts", 0) > 3:
-                verdict = "fail"
-                failed_contract = f"must_not: {check}"
+        health: dict = {}
+
+        # pod health checks (incident_investigation)
+        if any(c in ("pod_running",) for c in must) or any(c == "crash_loop" for c in must_not):
+            proposal = state.get("proposal", {})
+            pod = proposal.get("pod", "")
+            ns = proposal.get("namespace", "mission-control")
+            health = await k8s_check_pod_health(pod, ns)
+            for check in must:
+                if check == "pod_running" and not health.get("ready", False):
+                    verdict = "fail"; failed_contract = f"must: {check}"
+            for check in must_not:
+                if check == "crash_loop" and health.get("restarts", 0) > 3:
+                    verdict = "fail"; failed_contract = f"must_not: {check}"
+
+        # deployment health checks (a11y_fix)
+        if any(c == "deployment_ready" for c in must):
+            rollout = state.get("rollout_result", {}) or {}
+            dep = rollout.get("deployment", "mission-control-app")
+            ns = rollout.get("namespace", "mission-control")
+            dep_health = await k8s_check_deployment_ready(dep, ns)
+            health.update(dep_health)
+            for check in must:
+                if check == "deployment_ready" and not dep_health.get("deployment_ready", False):
+                    verdict = "fail"; failed_contract = f"must: {check}"
+            for check in must_not:
+                if check == "crash_loop" and dep_health.get("crash_loop", False):
+                    verdict = "fail"; failed_contract = f"must_not: {check}"
+
+        # studio/generator_evaluator checks
+        if any(c in ("output_valid", "no_errors") for c in must):
+            generated = state.get("generated", {}) or {}
+            if not generated or generated.get("error"):
+                verdict = "fail"; failed_contract = "must: output_valid"
+            retry_count = state.get("retry_count", 0) or 0
+            if verdict == "fail" and retry_count < 3:
+                verdict = "retry"
+
         await self.store.end_span(span_id, "ok", verdict=verdict, contract_line=failed_contract)
         return {output_key: verdict, "_eval_health": health}, verdict
 

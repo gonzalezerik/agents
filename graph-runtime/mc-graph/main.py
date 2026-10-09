@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from engine import GraphEngine
 from store import Store
 from graphs.incident_investigation import get_graph as get_incident_graph
+from graphs.a11y_fix import get_graph as get_a11y_graph
+from graphs.generator_evaluator import get_graph as get_geneval_graph
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("mc-graph")
@@ -24,6 +26,8 @@ _engine = None
 
 GRAPHS = {
     "incident_investigation": get_incident_graph(),
+    "a11y_fix":              get_a11y_graph(),
+    "generator_evaluator":   get_geneval_graph(),
 }
 
 @asynccontextmanager
@@ -32,12 +36,12 @@ async def lifespan(app):
     log.info("Connecting to Postgres: %s", DATABASE_URL.split("@")[-1])
     _pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
     _engine = GraphEngine(_pool)
-    log.info("mc-graph ready")
+    log.info("mc-graph ready — graphs: %s", list(GRAPHS.keys()))
     yield
     if _pool:
         await _pool.close()
 
-app = FastAPI(title="mc-graph", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="mc-graph", version="0.2.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -119,8 +123,17 @@ async def decide_approval(approval_id: str, req: ApprovalDecision):
 @app.get("/graphs")
 async def list_graphs():
     return [
-        {"id": g["id"], "display_name": g.get("display_name", g["id"]),
-         "description": g.get("description",""), "nodes": list(g["nodes"].keys())}
+        {
+            "id": g["id"],
+            "display_name": g.get("display_name", g["id"]),
+            "description": g.get("description", ""),
+            "nodes": [
+                {"id": nid, "type": n["type"], "display": n.get("display", nid)}
+                for nid, n in g["nodes"].items()
+            ],
+            "edges": g.get("edges", []),
+            "entry": g.get("entry"),
+        }
         for g in GRAPHS.values()
     ]
 
@@ -131,6 +144,17 @@ async def get_graph_def(graph_id: str):
         raise HTTPException(404)
     return g
 
+@app.get("/graphs/{graph_id}/evals")
+async def get_graph_evals(graph_id: str):
+    """Return eval run history for a graph (from Postgres)."""
+    try:
+        rows = await _pool.fetch(
+            "SELECT * FROM eval_runs WHERE graph_id=$1 ORDER BY created_at DESC LIMIT 20",
+            graph_id)
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        return []
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "graphs": list(GRAPHS.keys())}
+    return {"status": "ok", "graphs": list(GRAPHS.keys()), "version": "0.2.0"}
