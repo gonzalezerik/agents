@@ -4,7 +4,7 @@ control_loop.run() writes real agent_run/checkpoint rows, not mocked).
 
 Builds a minimal FastAPI app with only `ingest.router` mounted (this route's
 own docstring says not to touch `luna/api/main.py`, which is scoped to
-another build), and overrides `get_db` to use the shared `db_session`
+another module), and overrides `get_db` to use the shared `db_session`
 fixture and `require_service_token` to a fixed test token so auth can be
 exercised explicitly in its own tests.
 

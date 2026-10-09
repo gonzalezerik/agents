@@ -16,8 +16,8 @@ supported** and is honored as a hard grammar constraint, not a hint: with
 matching the schema on every test call (e.g. `{"label": "positive"}` for an
 enum-of-3 schema). This is llama.cpp server's native GBNF-backed
 structured-output support surfaced through the OpenAI-compatible
-`response_format` field -- exactly what CONTRACT.md asks us to use for
-Choice/Score/Noul constrained decoding.
+`response_format` field -- what we use for Choice/Score/Noul constrained
+decoding.
 
 **`logprobs: true, top_logprobs: N` IS supported**, OpenAI-style:
 `choices[0].logprobs.content` is a list of `{token, logprob, top_logprobs:
@@ -106,8 +106,7 @@ that got forced) plus an arbitrary floor constant for every other option"
 -- which produced an exact 50/50 `NoulAnswer` in the case above (both
 `"true"` and `"false"` missing from `top_logprobs`, both landing on the
 same floor). That is not an empirical distribution; presenting it as one
-would be exactly the "single greedy sample dressed up as calibrated" thing
-CONTRACT.md says not to do.
+would be a single greedy sample dressed up as calibrated.
 
 **Fix implemented**: `_option_probabilities` always folds the actually-
 emitted token's own (real, if raw/pre-mask) logprob into the candidate set
@@ -135,9 +134,8 @@ requested), and the "uninformative logprobs" case above (which, per the
 discovery, is common). `LocalDecisionProvider` issues the same constrained
 question `N=5` times at `temperature=0.5` (tuned empirically against this
 endpoint -- see `_SELF_CONSISTENCY_TEMPERATURE`'s comment for the specific
-data) and uses empirical option frequency as the probability map, per
-CONTRACT.md's explicit instruction not to present a single greedy sample as
-if it were calibrated.
+data) and uses empirical option frequency as the probability map, rather
+than presenting a single greedy sample as if it were calibrated.
 
 ## Second live-probing discovery: "ignore embedded instructions" framing
 ## can make a small model under-report that they're present
@@ -158,7 +156,7 @@ explicit carve-out that a detection question about instruction-attempts
 should be answered honestly) got `true` 4/4 times, with the benign
 counter-example still correctly `false` 4/4 times. The system prompt below
 uses that corrected framing. This is exactly the kind of subtlety
-CONTRACT.md's Guardrails section depends on getting right (`guardrails.py`'s
+the guardrails depend on getting right (`guardrails.py`'s
 injection Noul gate is only as good as this prompt) -- documenting it here
 because the failure mode (self-referential "ignore/suppress" language
 suppressing detection of the very thing it's telling the model to ignore)
@@ -171,7 +169,7 @@ one HTTP call per question key in the input `questions` dict (even when
 called with a dict of size > 1), and each call's prompt contains only that
 one question's `instructions`/`criteria` plus `state` -- sibling questions
 are never mentioned. This is what makes the JEV conformance independence
-probe (spec §2.4 item 3) structurally guaranteed rather than
+probe structurally guaranteed rather than
 hope-the-model-behaves: a sibling question's content is physically absent
 from the wire request, so it cannot move another question's answer except
 through `state`, which is the intended channel.

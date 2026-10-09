@@ -11,10 +11,9 @@ C3 lunar rover team. Jira stays the system of record. Team members talk to
 LUNA in chat, and LUNA proposes Jira changes that a human confirms before
 anything is written.
 
-- Full spec: [`docs/spec.md`](docs/spec.md)
-- Interface contract for anyone building a piece (wins over the spec):
-  [`CONTRACT.md`](CONTRACT.md)
-- Build notes, known gaps and deviations: [`NOTES.md`](NOTES.md)
+Known gaps are documented in the module docstrings where they live (for
+example, recorded voice is uploaded but not yet transcribed -- see
+`luna/adapters/discord_adapter.py`).
 
 ## How it decides things
 
@@ -57,7 +56,5 @@ setting.
 
 ## Where it runs
 
-Container images build from `deploy/Dockerfile.*`. The canonical repository
-and image builds live on the team lead's self-hosted Forgejo. The cluster
-manifests live in a separate homelab GitOps repo, and the deployments are
-currently scaled to zero.
+Container images build from `deploy/Dockerfile.*` (build context: this
+`luna/` folder). Kubernetes manifests are not part of this repository.

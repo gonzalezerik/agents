@@ -6,9 +6,8 @@ do: a real `WhisperModel("tiny", device="cpu", compute_type="int8")` load
 was verified here directly during development, completing in ~6s including
 the first-use download), but because pulling a real model and running real
 inference on every `pytest` invocation would make the default (non-`llm`,
-non-live-service) test run slow and network-dependent, which CONTRACT.md
-explicitly asks every builder to avoid ("tests/ must be runnable with no
-live Jira/Discord/Slack/LLM"). See `luna/adapters/transcript.py`'s module
+non-live-service) test run slow and network-dependent -- the default suite
+must run with no live Jira/Discord/Slack/LLM. See `luna/adapters/transcript.py`'s module
 docstring for the full finding.
 """
 

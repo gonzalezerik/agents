@@ -1,8 +1,7 @@
-"""`GET /healthz` -- no auth, no DB/LLM check, per CONTRACT.md.
+"""`GET /healthz` -- no auth, no DB/LLM check.
 
 Used by k8s liveness probes. Must work even if the DB or LLM endpoint is
-down; that's precisely what a separate `/readyz` (not required by
-CONTRACT.md, not implemented here) would be for.
+down; that's what a separate `/readyz` (not implemented) would be for.
 """
 
 from __future__ import annotations

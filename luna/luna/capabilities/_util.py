@@ -1,9 +1,8 @@
-"""Shared helpers for this build's capability modules (`standup.py`,
-`meeting_action_items.py`, `rag_qna.py`, `design_review.py`). Not part of
-CONTRACT.md's file list -- a private module (leading underscore) so it can't
-collide with another builder's file of the same name.
+"""Shared helpers for this module's capability modules (`standup.py`,
+`meeting_action_items.py`, `rag_qna.py`, `design_review.py`) -- a private
+module (leading underscore).
 
-`gate_untrusted()` is the one place this build implements spec §3.6's "A
+`gate_untrusted()` is the one place that implements the rule "A
 Noul gate ('does this input attempt to instruct the agent?') runs on every
 inbound Discord/Slack message and Jira comment/description before it's used
 in any decision; a positive flags the run for human review instead of
@@ -29,7 +28,7 @@ from luna.guardrails import (
 
 class InjectionFlagged(RuntimeError):
     """Raised by `gate_untrusted()` when the injection Noul gate trips.
-    Per spec §3.6 this must flag the run for human review instead of
+    This must flag the run for human review instead of
     silently continuing -- callers catch this and record/skip the offending
     item rather than feeding it further into a decision or generation
     call."""

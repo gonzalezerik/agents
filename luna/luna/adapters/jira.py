@@ -1,11 +1,10 @@
 """`JiraAdapter` -- the only place in LUNA that speaks Jira Cloud REST v3.
 
-CONTRACT.md / spec §3.8: HTTP Basic auth (service-account email + API token)
+HTTP Basic auth (service-account email + API token)
 against `https://{JIRA_SITE}.atlassian.net/rest/api/3/...`. Every *write*
 method accepts an `idempotency_key` and no-ops (returns a marker dict,
 doesn't raise) if a `Proposal` row already shows that key applied/verified --
-checked against Postgres via the `session` argument, never a local cache
-(CONTRACT.md: "check DB state, not a local cache").
+checked against Postgres via the `session` argument, never a local cache.
 
 ## There is no real Jira site to test against (known, permanent v1 gap)
 
@@ -37,16 +36,15 @@ legacy one, that's a one-method change, not an interface change.
    `luna-api`/`luna-worker` deployment's env/secret.
 3. Nothing else changes -- `JiraAdapter()` picks these up from
    `luna.config.get_settings()` automatically.
-4. **Documented upgrade path** (not implemented, per CONTRACT.md's note that
-   Basic auth is "simpler for a single-tenant service account" for v1): if
+4. **Documented upgrade path** (not implemented; Basic auth is simpler for
+   a single-tenant service account in v1): if
    per-user attribution beyond comment-body mentions is ever needed, swap
    Basic auth for OAuth 2.0 (3LO) against
    `https://api.atlassian.com/ex/jira/{cloudId}/rest/api/3/...` -- the method
    signatures here would not need to change, only `__init__`'s auth wiring
    and base URL resolution (a `cloudId` lookup via
    `GET https://api.atlassian.com/oauth/token/accessible-resources` first).
-5. **Documented credential-split upgrade** (CONTRACT.md "Scoped
-   credentials"): v1 uses a single `JIRA_EMAIL`/`JIRA_API_TOKEN` service
+5. **Documented credential-split upgrade**: v1 uses a single `JIRA_EMAIL`/`JIRA_API_TOKEN` service
    account for both reads and writes, noted as a v1 limitation -- if the
    team's Jira plan ever supports multiple API tokens/principals, split into
    `JIRA_*_READONLY` (used by the poller, capabilities #4/#5/#8) and
@@ -70,8 +68,7 @@ _ALREADY_APPLIED_STATUSES = (ProposalStatus.applied, ProposalStatus.verified)
 
 class JiraNotConfiguredError(RuntimeError):
     """Raised at `JiraAdapter()` construction time when JIRA_SITE/JIRA_EMAIL/
-    JIRA_API_TOKEN aren't set -- per CONTRACT.md's credential policy, this
-    must fail loudly and specifically naming what's missing, not silently
+    JIRA_API_TOKEN aren't set. This must fail loudly and specifically naming what's missing, not silently
     no-op or crash-loop the whole process. Every capability/worker that
     constructs a JiraAdapter should let this propagate; only the specific
     Jira-dependent feature dies, not the process."""
@@ -130,7 +127,7 @@ class JiraAdapter:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    # -- idempotency (CONTRACT.md: check DB state, not a local cache) ----
+    # -- idempotency ----
 
     async def _idempotent_noop(
         self, session: AsyncSession | None, idempotency_key: str
@@ -208,11 +205,11 @@ class JiraAdapter:
         resp.raise_for_status()
         return resp.json()
 
-    # -- admin/seed-only methods (beyond CONTRACT.md's minimum interface) --
+    # -- admin/seed-only methods (beyond the core adapter interface) --
     #
     # `seed/seed_jira.py` needs a few more Jira Cloud admin resource types
-    # (custom fields, issue types, global statuses) that CONTRACT.md's
-    # required-method list doesn't mention. Kept here rather than reaching
+    # (custom fields, issue types, global statuses) that capabilities never
+    # use. Kept here rather than reaching
     # into `self._client` from seed_jira.py directly, so this stays the one
     # place in LUNA that speaks Jira REST. These are not part of the
     # write-proposal/idempotency_key lifecycle (seed isn't Proposal-driven --

@@ -1,7 +1,6 @@
-"""Capability #9 -- risk manager (R -> report; W via proposals). Not in the
-original spec §3.3 list; added 2026-10-08 on top of the spec's existing
-`Risk` issue type + `Risk Likelihood`/`Risk Impact`/`Risk Score` fields
-(§3.2), which nothing else in LUNA acted on.
+"""Capability #9 -- risk manager (R -> report; W via proposals). Builds on the
+`Risk` issue type + `Risk Likelihood`/`Risk Impact`/`Risk Score` fields that
+`seed/seed_jira.py` creates, which nothing else in LUNA acted on.
 
 Two modes, one capability (`/risks` slash command, plus the scheduler):
 

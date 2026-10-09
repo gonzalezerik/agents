@@ -1,8 +1,8 @@
 """Tests for `luna/adapters/jira.py` -- realistic Jira Cloud REST v3 response
 shapes mocked via `respx` (no real Jira site exists, see the adapter's module
 docstring). Covers every required method, the ADF comment-body wrapping, the
-`add_worklog` exactly-one-of validation, and -- the two things the task brief
-calls out explicitly -- idempotency (double-apply is a no-op) and the
+`add_worklog` exactly-one-of validation, and -- the two things that matter
+most -- idempotency (double-apply is a no-op) and the
 `JiraNotConfiguredError` fail-loud path.
 """
 

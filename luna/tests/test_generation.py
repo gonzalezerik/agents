@@ -1,8 +1,7 @@
 """Tests for `luna.generation.generator.Generation`. The mocked tests need
 no live services; the one `@pytest.mark.llm` test verifies -- for real,
 against the live endpoint -- that embedded instructions in untrusted
-content don't get obeyed (spec §3.6's prompt-injection defense for the
-generation path)."""
+content don't get obeyed."""
 
 from __future__ import annotations
 

@@ -2,9 +2,9 @@
 
 All four entrypoints (luna-api, luna-discord, luna-slack, luna-worker) import
 ``Settings`` from here rather than reading `os.environ` directly, so the
-canonical env var names in CONTRACT.md have exactly one home.
+env var names have exactly one home.
 
-Credential handling policy (CONTRACT.md "Environment variables"): an unset or
+Credential handling policy: an unset or
 placeholder credential must make the *specific* feature that needs it fail
 loudly and specifically, never silently no-op and never crash-loop the whole
 process where avoidable. This module therefore does not raise on missing
@@ -37,10 +37,9 @@ class Settings(BaseSettings):
     )
 
     # --- Decision Engine / local LLM -----------------------------------
-    # Real, reachable cluster endpoint -- defaults point at it so the JEV
-    # conformance tests only need LLM_API_KEY set. See
+    # Any OpenAI-compatible endpoint (llama.cpp server / llama-swap). See
     # luna/decision/local_provider.py's module docstring for exactly what
-    # this endpoint does and doesn't support.
+    # it must support.
     llm_base_url: str = Field(
         default="http://localhost:8080/v1",
         alias="LLM_BASE_URL",
@@ -70,12 +69,9 @@ class Settings(BaseSettings):
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
 
     # --- luna-api base URL, as seen by luna-discord/luna-slack ----------
-    # Not in CONTRACT.md's original env var list -- added by the chat-layer
-    # build (luna/adapters/_api_client.py) because the bot processes are
-    # HTTP clients of their own API (CONTRACT.md: "the bot calls its own
-    # API, not the other way around") and need to know where it lives.
-    # Default matches the in-cluster k8s Service name from CONTRACT.md's
-    # deployment section (namespace `luna`, Service `luna-api`).
+    # Used by luna/adapters/_api_client.py: the bot processes are HTTP
+    # clients of their own API and need to know where it lives. Default
+    # matches the in-cluster k8s Service (namespace `luna`, Service `luna-api`).
     luna_api_base: str = Field(default="http://luna-api:8000", alias="LUNA_API_BASE")
 
     # --- Object storage (Garage / S3-compatible) ------------------------
@@ -90,7 +86,7 @@ class Settings(BaseSettings):
     docs_repo_token: str = Field(default="", alias="DOCS_REPO_TOKEN")
 
     def allow_jev_provider(self) -> bool:
-        """The cloud-decisions gate (spec Part 2, CONTRACT.md "Decision Engine").
+        """The cloud-decisions gate.
 
         `JevProvider` must never be constructible unless *both* a TypeSafe API
         key is configured *and* the operator has explicitly opted in via

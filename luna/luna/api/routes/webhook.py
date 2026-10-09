@@ -1,16 +1,12 @@
-"""`POST /jira/webhook` -- optional-mode Jira webhook receiver (spec
-§3.8/§3.11). CONTRACT.md/spec are explicit that **polling
-(`workers/poller.py`) is the default path**; this route exists for
-completeness ("build it for completeness per spec §3.8/3.11, but it's not
-the default path") and is only meaningfully useful if `JIRA_WEBHOOK_MODE=true`
-and the site is set up with a dynamic OAuth webhook (spec §1.4: "only
-Connect and OAuth 2.0 apps can register dynamic webhooks... expire after 30
-days... require a public HTTPS endpoint") pointed at this route behind a
+"""`POST /jira/webhook` -- optional-mode Jira webhook receiver.
+
+**Polling (`workers/poller.py`) is the default path**; this route exists
+for completeness and is only meaningfully useful if `JIRA_WEBHOOK_MODE=true`
+and the site is set up with a dynamic OAuth webhook pointed at this route behind a
 Cloudflare Tunnel.
 
-Not wired into `luna/api/main.py` here -- the integrator does that, and
-per spec should only actually mount this router when
-`settings.jira_webhook_mode` is true.
+`luna/api/main.py` only mounts this router when `settings.jira_webhook_mode`
+is true.
 
 ## What this does
 
@@ -22,19 +18,15 @@ Jira Cloud webhook payloads for `jira:issue_updated` look like:
     "user": {...}, "changelog": {"items": [...]},
 }
 ```
-Delivery is not guaranteed-once (spec §1.4: "Jira's retry behavior is
-limited (do not treat delivery as guaranteed)") and the same event can be
+Jira's webhook delivery is not guaranteed-once and the same event can be
 redelivered, so every request is deduped on the
 `X-Atlassian-Webhook-Identifier` header before doing anything else.
 
 **Dedup store note**: a real production dedup needs a persistent table (a
 redelivered event could arrive after a process restart, when an in-memory
-set is empty again) -- CONTRACT.md doesn't list a dedicated table for this
-in the data model (spec §3.5), and adding a new table is out of this
-build's scope (schema changes belong with the foundational `db/models.py`
-owner). This route dedupes with a bounded in-process set as a *best-effort*
-v1 behavior and logs plainly that it is not durable across restarts -- noted
-in NOTES.md. Given polling is the default path and this route is opt-in,
+set is empty again), and the data model has no table for it yet. This
+route dedupes with a bounded in-process set as a *best-effort* v1 behavior
+and logs plainly that it is not durable across restarts. Given polling is the default path and this route is opt-in,
 that gap is acceptable for v1.
 """
 

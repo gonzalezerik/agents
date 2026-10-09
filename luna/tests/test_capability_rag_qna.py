@@ -10,8 +10,7 @@ and no network beyond the one-time Hugging Face download, matching
 also need Postgres+pgvector use the shared `db_session` fixture and skip
 automatically if it's unreachable (`conftest.py`).
 
-The one `@pytest.mark.llm` test is the important one CONTRACT.md/the task
-brief calls out by name: verifying, for real against the live endpoint,
+The one `@pytest.mark.llm` test is the important one: verifying, for real against the live endpoint,
 that thin/irrelevant retrieval makes `answer_question()` say "I don't know"
 instead of letting `Generation.generate()` guess.
 """
@@ -123,8 +122,7 @@ async def test_answer_question_with_no_index_says_i_dont_know(db_session) -> Non
 
 @pytest.mark.llm
 async def test_answer_question_insufficient_retrieval_says_i_dont_know_live(db_session) -> None:
-    """The genuinely important behavior CONTRACT.md/the task brief calls
-    out: index something narrow and unrelated, ask an off-topic question,
+    """The genuinely important behavior: index something narrow and unrelated, ask an off-topic question,
     and verify the live Decision Engine gate + Generation path actually
     produces an honest "I don't know" rather than a hallucinated answer."""
     doc = ReindexSourceDoc(

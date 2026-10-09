@@ -1,6 +1,6 @@
-"""Capability #1 -- conversational status intake (write-capable), spec §3.3.
+"""Capability #1 -- conversational status intake (write-capable)
 
-Pipeline (spec): a student's free-form status update -> Decision Engine
+Pipeline: a student's free-form status update -> Decision Engine
 resolves *which issue* (Choice over JQL candidates), *what transition*
 (Choice), *is this a blocker?* (Noul), *does this need human confirm?*
 (Noul, always true in practice), *urgency* (Score) -> a `Proposal` row ->
@@ -14,7 +14,7 @@ human taps Confirm/Edit/Cancel -> apply via Jira REST -> verify by re-reading
 `control_loop.run()`/`_drive()` always walk that whole list top to bottom,
 persisting a checkpoint after each node -- there is no "pause here and wait"
 primitive, only "keep going" or "raise -> mark the whole run `failed`".
-Guardrails (spec §3.6) require *every* Jira write to wait for an explicit
+Guardrails require *every* Jira write to wait for an explicit
 human Confirm tap with no bypass -- so Apply cannot run in the same pass that
 produced the proposal.
 
@@ -38,7 +38,7 @@ capability was only asked to register `decide`/`plan`/`gate`/`apply`/
 
 ## `luna/workers/poller.py`'s resume-on-startup carve-out
 
-CONTRACT.md says workers resume every non-terminal `agent_run` on startup.
+Workers resume every non-terminal `agent_run` on startup.
 For every *other* capability that's harmless. For `status_intake` specifically
 it is not: a run sitting at `apply` is deliberately waiting on a human, not
 crashed. `poller.py` special-cases this -- see its module docstring -- by
@@ -140,7 +140,7 @@ async def _decide(ctx: RunContext) -> RunContext:
     ctx.data["flagged_for_review"] = flagged
 
     if flagged:
-        # Per spec §3.6: a positive injection-gate flag halts automatic
+        # A positive injection-gate flag halts automatic
         # processing -- we do not ask any further question about this input.
         ctx.data["decisions"] = None
         return ctx
@@ -243,7 +243,7 @@ async def _plan(ctx: RunContext) -> RunContext:
 async def _gate(ctx: RunContext) -> RunContext:
     session = current_session()
     # Always True for Jira writes -- called for real, not skipped, per the
-    # task brief ("call it, don't skip it, even though you know the
+    # design ("call it, don't skip it, even though you know the
     # answer"). Raises if ever misused with jira_write=False, which this
     # capability never does.
     require_confirmation(kind=ctx.data.get("proposal_kind", "status_transition"), jira_write=True)
@@ -402,9 +402,7 @@ async def start(
     initial_data: dict[str, Any] | None = None,
 ) -> RunContext:
     """Kick off a status_intake run and drive it through `gate`, then stop
-    (see module docstring). Whatever adapter event eventually triggers this
-    (`api/routes/ingest.py`, owned by another builder, doesn't exist in this
-    worktree yet) should call this with `initial_data={"raw_text": ...,
+    (see module docstring). Callers should pass `initial_data={"raw_text": ...,
     "source": "discord"|"slack", ...}`."""
     run_row = AgentRun(
         capability=CAPABILITY,

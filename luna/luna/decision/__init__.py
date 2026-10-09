@@ -1,4 +1,4 @@
-"""The JEV-faithful Decision Engine (spec Part 2, CONTRACT.md "The Decision Engine").
+"""The JEV-faithful Decision Engine.
 
 Every capability routes semantic judgment through `DecisionProvider.decide()`
 in `luna.decision.engine`. Never call the local LLM directly from a

@@ -1,9 +1,8 @@
 """Shared FastAPI dependencies: DB session + bearer-token auth.
 
-CONTRACT.md: "Auth on every route except `/healthz`: a shared-secret bearer
-token (`INTERNAL_SERVICE_TOKEN` env, checked in `api/deps.py`) since
-`luna-discord` and `luna-slack` are the only callers of `/ingest/*`, and
-there is no end-user-facing web UI in v1."
+Every route except `/healthz` requires a shared-secret bearer token
+(`INTERNAL_SERVICE_TOKEN`): `luna-discord` and `luna-slack` are the only
+callers of `/ingest/*`, and there is no end-user-facing web UI in v1.
 """
 
 from __future__ import annotations
@@ -32,7 +31,7 @@ async def require_service_token(
     settings: Settings = Depends(get_settings),
 ) -> None:
     """Every route except `/healthz` depends on this. Fails loudly and
-    specifically per CONTRACT.md's credential-handling policy: an unset
+    specifically: an unset
     `INTERNAL_SERVICE_TOKEN` is a server misconfiguration (500, with a clear
     log line), not something that should silently accept any bearer value or
     silently no-op auth -- distinct from a caller simply presenting a wrong

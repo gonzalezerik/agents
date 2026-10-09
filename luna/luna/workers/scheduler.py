@@ -1,6 +1,6 @@
 """Periodic scheduler (`luna-worker`) -- drives capability #8 (deadline
-reminders) on its own interval. Spec/CONTRACT.md: "a simple asyncio interval
-loop is fine for v1, no need for a heavyweight scheduler library."
+reminders) on its own interval. A simple asyncio interval loop is fine for
+v1; no heavyweight scheduler library.
 `workers/poller.py` already drives #4/#5 every `JIRA_POLL_INTERVAL_SECONDS`
 tick as part of its own change-detection loop; this scheduler additionally
 drives #8 on a much longer interval of its own, since day-granularity

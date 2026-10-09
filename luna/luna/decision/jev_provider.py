@@ -1,4 +1,4 @@
-"""`JevProvider` -- the exact TypeSafe `/v1/systemone` contract (spec §3.9),
+"""`JevProvider` -- the exact TypeSafe `/v1/systemone` contract,
 a drop-in for `DecisionProvider` if the team is ever given a real API key.
 
 **Ships disabled.** `luna.decision.engine.get_decision_provider()` refuses to
@@ -9,10 +9,10 @@ enforcement point so there's exactly one place to audit), but it does refuse
 to be constructed with an empty API key, as a second, cheap line of defense
 against accidental direct instantiation.
 
-Jev is cloud-only, closed-weight, early-access/waitlisted (spec §1.1) -- this
+Jev is cloud-only, closed-weight, early-access/waitlisted -- this
 provider has **not** been exercised against a real TypeSafe endpoint (no key
 was available while building this). It is written strictly from the
-published contract in spec §3.9 and is unit-tested against a mocked
+published API contract and is unit-tested against a mocked
 response shape only.
 """
 

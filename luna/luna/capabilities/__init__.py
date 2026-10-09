@@ -1,4 +1,4 @@
-"""Capability modules (spec §3.3). Importing a capability module registers
+"""Capability modules. Importing a capability module registers
 its `control_loop` nodes as a side effect (`register_node()` calls at module
 top level) -- see each module's docstring for which `RunStatus` stages it
 implements.

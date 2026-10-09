@@ -4,8 +4,7 @@ Wires `luna/adapters/slack_adapter.py`'s Bolt `AsyncApp` behind Socket Mode
 (`AsyncSocketModeHandler`, an outbound WebSocket -- no public endpoint or
 Ingress route, see `slack_adapter.py`'s docstring). Missing/placeholder
 `SLACK_BOT_TOKEN` or `SLACK_APP_TOKEN` is fatal to this whole process, same
-crash-loop-with-clear-message pattern as `discord_bot.py` / the abandoned
-Cairn project's `cairn-bot`: nothing this process does is useful without
+crash-loop-with-clear-message pattern as `discord_bot.py`: nothing this process does is useful without
 both tokens.
 """
 

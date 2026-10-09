@@ -1,7 +1,7 @@
 """Deterministic risk-register math for capability #9 (`risk_manager.py`).
 
 Pure functions over plain data -- no Jira, LLM, or DB -- so every number the
-risk review reports is reproducible and unit-testable. Per the spec's JEV
+risk review reports is reproducible and unit-testable. Per LUNA's JEV
 pattern, the model never does arithmetic: the Decision Engine only proposes
 a Likelihood/Impact for a *new* risk (`risk_manager.propose_risks`); scoring,
 banding, staleness and milestone exposure all happen here, in code.
@@ -9,7 +9,7 @@ banding, staleness and milestone exposure all happen here, in code.
 ## Conventions (team policy, not physics -- tune them in one place)
 
 - Likelihood and Impact are the 1-5 `Risk Likelihood` / `Risk Impact` Jira
-  custom fields from spec §3.2; `Risk Score` = L x I.
+  custom fields set up by `seed/seed_jira.py`; `Risk Score` = L x I.
 - Score bands: LOW 1-4, MEDIUM 5-12, HIGH 15-25. (L x I over 1..5 never
   produces 13 or 14, so the bands have no gap in practice.)
 - `LIKELIHOOD_PROBABILITY` maps each likelihood level to a probability of

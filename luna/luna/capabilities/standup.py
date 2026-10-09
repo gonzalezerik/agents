@@ -1,12 +1,12 @@
-"""Capability #2 -- standup / weekly summaries (spec §3.3 #2, CONTRACT.md).
+"""Capability #2 -- standup / weekly summaries.
 
 Read-only against Jira. Drafts each roster member's update from their recent
 Jira activity (Troopr-style two-stage provenance: LUNA drafts, the person
 edits before it's actually posted), extracts blockers via the Decision
 Engine, and flags candidate new action items that don't look like they're
 already tracked as their own Jira ticket. `run_standup()` never posts
-anything itself -- see "Output shape" below -- and per spec "#2 may create
-action-item proposals routed through #3's confirm flow," flagged action-item
+anything itself -- see "Output shape" below -- and since #2 may create
+action-item proposals routed through #3's confirm flow, flagged action-item
 candidates are handed to `meeting_action_items.propose_action_items()` (this
 build's own capability #3) so they go through the identical
 proposal->confirm->apply path, rather than this module inventing a second
@@ -14,13 +14,11 @@ write path.
 
 ## Jira adapter interface this module depends on
 
-`luna/adapters/jira.py` is another builder's file and does not exist yet in
-this worktree (CONTRACT.md scope). This module is written against the
-interface CONTRACT.md documents for it -- `search_jql(jql, fields=...) ->
+This module is written against `luna/adapters/jira.py`'s interface --
+`search_jql(jql, fields=...) ->
 list[dict]` (Jira REST v3 issue-search shape: each dict has `key` and
 `fields`) and `get_issue(key) -> dict` -- via the `JiraAdapterLike` Protocol
-below, so it's fully testable today with a fake and needs no changes once
-the real adapter lands. See NOTES.md.
+below, so it's fully testable with a fake.
 
 ## Output shape (what a Discord/Slack adapter consumes)
 
@@ -34,7 +32,7 @@ not yet flushed/committed by this function) that
 flagged candidates, ready for the same confirm-card flow capability #3
 uses. It's a plain `dataclasses`-based tree (`dataclasses.asdict()`-able,
 `Proposal` rows aside) -- this module has no knowledge of Discord embeds or
-Block Kit at all; posting is entirely another builder's job.
+Block Kit at all; posting is entirely a separate module's job.
 """
 
 from __future__ import annotations
@@ -113,8 +111,8 @@ async def run_standup(
 
     team_summary = await _team_summary(session, run_id, generation, subteam, member_updates)
 
-    # spec §3.3#2: "#2 may create action-item proposals routed through #3's
-    # confirm flow" -- one code path (meeting_action_items.propose_action_items)
+    # #2 may create action-item proposals routed through #3's confirm flow --
+    # one code path (meeting_action_items.propose_action_items)
     # turns a candidate string into a pending Proposal, whether the candidate
     # came from a meeting transcript or, as here, a standup ticket comment.
     candidates = [

@@ -1,6 +1,6 @@
 """Our own documented confidence statistic -- explicitly NOT a Jev clone.
 
-Spec §2.5's honest caveat: TypeSafe never publishes Jev's confidence formula,
+Honest caveat: TypeSafe never publishes Jev's confidence formula,
 and the commonly-cited `(p_max - 1/K) / (1 - 1/K)` normalization does not
 reproduce TypeSafe's own worked example (Choice probs {0.84, 0.159, 0.001} ->
 published confidence 0.596, but that formula yields ~0.760). We do not try to

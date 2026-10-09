@@ -2,17 +2,15 @@
 
 Two live-infrastructure dependencies are used for real in this suite, each
 with its own graceful-skip story so the plain `pytest` run stays usable with
-no cluster access (CONTRACT.md):
+no cluster access:
 
 - The local LLM endpoint (`LLM_BASE_URL`) -- tests marked `@pytest.mark.llm`
   are skipped automatically if it's unreachable at collection time (checked
   once, synchronously, against `GET /models`).
 - Postgres -- `db_session` tries to connect to `TEST_DATABASE_URL` (falls
-  back to `DATABASE_URL`, then to the ephemeral local instance this build
+  back to `DATABASE_URL`, then to the ephemeral local instance this module
   was developed/tested against) and skips any test that needs it if no
-  server answers. This is not one of CONTRACT.md's explicitly-named "must
-  run with no live services" externals (Jira/Discord/Slack/LLM), but the
-  same skip-don't-fail discipline applies for the same reason: a clean
+  server answers. Same skip-don't-fail discipline as the LLM: a clean
   checkout with no Postgres reachable should not turn into a wall of
   errors.
 """

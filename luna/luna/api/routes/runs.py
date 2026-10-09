@@ -1,4 +1,4 @@
-"""`GET /runs/{id}` (CONTRACT.md API surface)."""
+"""`GET /runs/{id}`."""
 
 from __future__ import annotations
 

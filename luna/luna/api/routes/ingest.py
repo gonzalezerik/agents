@@ -1,10 +1,9 @@
-"""`POST /ingest/discord`, `POST /ingest/slack` (CONTRACT.md API surface).
+"""`POST /ingest/discord`, `POST /ingest/slack`.
 
 This is the receiving side of the chat layer: `luna/adapters/discord_adapter.py`
 and `luna/adapters/slack_adapter.py` are the only intended callers (their own
-bot processes calling back into their own API, per CONTRACT.md's "the bot
-calls its own API, not the other way around, to keep one source of truth for
-proposal state"). Auth is the same shared-secret bearer token as every other
+bot processes calling back into their own API, so there is one source of
+truth for proposal state). Auth is the same shared-secret bearer token as every other
 route (`require_service_token`) -- there is nothing platform-specific about
 auth here, Discord/Slack signature verification happens in the adapters
 themselves before they ever call this API.
@@ -12,8 +11,7 @@ themselves before they ever call this API.
 ## What this route does NOT do
 
 - It does not call `DecisionProvider.decide()` or `Generation.generate()`.
-  That is capability code's job (`luna/capabilities/*.py`, another builder's
-  scope, not present in this worktree yet).
+  That is capability code's job (`luna/capabilities/*.py`).
 - It does not wrap inbound text in `guardrails.Untrusted[str]`. That wrapper
   is a frozen dataclass, not JSON-serializable, and `RunContext.data` must
   round-trip through JSON (it is persisted verbatim into
@@ -27,7 +25,7 @@ themselves before they ever call this API.
   question's `state` or `Generation.generate()`. **Untrusted fields in the
   shapes below:** `command.options` (values), `modal.fields` (values).
 - It does not resolve a platform user id to a `Roster` row. The `Roster` seed
-  (owned by the Jira-adapter builder) currently ships real names with empty
+  (owned by the Jira adapter) currently ships real names with empty
   `discord_id`/`slack_id` for everyone -- there is nothing to resolve against
   yet. `actor_user` on the created `agent_run` is therefore a raw
   platform-prefixed id string (`"discord:<snowflake>"` /
@@ -43,19 +41,14 @@ themselves before they ever call this API.
 Validates the inbound event against a small Pydantic shape (below), then
 starts a `control_loop.run()` with `capability` resolved from the slash
 command name (or `"meeting_action_items"` for a voice-recording handoff) and
-`initial_data` set to the normalized event. Because no `luna/capabilities/*`
-module exists in this worktree yet, every control-loop node is
-`control_loop`'s documented no-op passthrough, so the run completes
-trivially (`status="completed"`) with nothing done -- that is expected, not a
-bug: the moment a capability module registers real `Ingest`/`Normalize`/...
-node functions for these capability names, the exact same POST body starts
-doing real work with zero changes needed here. One `audit_event` row is
+`initial_data` set to the normalized event; the capability module's
+registered nodes do the work. One `audit_event` row is
 written per accepted ingest event (`action="ingest.discord.<type>"` /
 `"ingest.slack.<type>"`) so "did we ever receive this" is answerable from the
-audit log even before any capability logic exists.
+audit log.
 
-## Exact JSON request shapes (other builders' capability code depends on
-these -- do not change without updating CONTRACT.md and this docstring)
+## Exact JSON request shapes (other modules' capability code depends on
+these -- do not change without updating this docstring)
 
 `POST /ingest/discord`:
 ```json
@@ -98,7 +91,7 @@ Both routes respond `202 Accepted` with
 `{"run_id": "<uuid>", "capability": "status_intake", "status": "completed"}`
 on success. Confirm/Edit/Cancel button clicks on proposal cards do **not**
 come through here -- both adapters call `POST /proposals/{id}/confirm|cancel|edit`
-directly (another builder's route, not yet present in this worktree).
+directly (`luna/api/routes/proposals.py`).
 """
 
 from __future__ import annotations
@@ -120,11 +113,9 @@ logger = logging.getLogger("luna.api.ingest")
 router = APIRouter(prefix="/ingest", tags=["ingest"], dependencies=[Depends(require_service_token)])
 
 
-# Slash-command name -> `luna/capabilities/*.py` module name (CONTRACT.md
-# repo layout), i.e. the `capability` string `control_loop.run()` uses to
+# Slash-command name -> `luna/capabilities/*.py` module name, i.e. the `capability` string `control_loop.run()` uses to
 # look up registered nodes. Shared between Discord and Slack since both
-# adapters mirror the same command set (CONTRACT.md: Slack is a
-# secondary/mirror surface, spec §3.1 pushback #4).
+# adapters mirror the same command set.
 COMMAND_TO_CAPABILITY: dict[str, str] = {
     "status": "status_intake",
     "ask": "rag_qna",

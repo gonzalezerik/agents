@@ -1,8 +1,7 @@
-"""Capability #6 -- knowledge Q&A (RAG) with citations (spec §3.3 #6,
-CONTRACT.md). Read-only.
+"""Capability #6 -- knowledge Q&A (RAG) with citations. Read-only.
 
 pgvector similarity search over `Embedding` rows -> Decision Engine gates
-"is retrieval sufficient to answer?" (`NoulQuestion`, spec §3.5/§3.6) ->
+"is retrieval sufficient to answer?" (`NoulQuestion`) ->
 `Generation.generate()` synthesizes an answer **with citations**
 (issue-key/page keys, never an uncited claim) only when the gate passes;
 otherwise `answer_question()` returns an honest "I don't know / here's who
@@ -11,15 +10,15 @@ context.
 
 This module also owns embedding/reindex logic (`reindex()`): (re)embeds a
 list of `{source_type, source_ref, title, text, updated_at}` records into
-`Embedding` rows. Source data comes from Jira (another builder's adapter)
-and a docs-repo KB (Forgejo Markdown, spec §3.2) -- `reindex()` deliberately
+`Embedding` rows. Source data comes from Jira (a separate module's adapter)
+and a docs-repo KB (Forgejo Markdown) -- `reindex()` deliberately
 takes plain dicts/`ReindexSourceDoc`, never reaching into
 `adapters.jira`/docs-repo internals itself, so it stays testable and
-decoupled per CONTRACT.md's scope boundary.
+decoupled.
 
 ## The embedding-endpoint finding (read before touching `embedding.vector`)
 
-CONTRACT.md/the task brief assumed the local LLM endpoint
+The original plan assumed the local LLM endpoint
 (`LLM_BASE_URL`) might expose a working `/v1/embeddings` route for one of
 its chat models, with `EMBEDDING_MODEL` naming which one. **Verified against
 the real endpoint (2026-09-18): it does not.**
@@ -38,13 +37,11 @@ embedding model at `LLM_BASE_URL` today.**
 **Fallback chosen: `sentence-transformers/all-mpnet-base-v2`, run
 in-process on CPU.** This produces **768-dimensional** vectors --
 deliberately chosen to exactly match `Embedding.vector`'s fixed
-`Vector(768)` column (CONTRACT.md: "768 dims to match the local embedding
-model; fixed, changing it needs a full migration+reindex, don't casually
-alter"), so **no schema migration is needed**. The smaller, faster
+`Vector(768)` column, so **no schema migration is needed**. The smaller, faster
 `all-MiniLM-L6-v2` (384-dim) was deliberately *not* chosen even though it's
 lighter, because it would silently break `Embedding.vector`'s dimension and
-require a schema-breaking migration+reindex -- exactly what the task brief
-said to flag loudly rather than paper over. Tradeoff being documented
+require a schema-breaking migration+reindex -- flagged loudly rather than
+papered over. Tradeoff being documented
 honestly: `all-mpnet-base-v2` is a ~420MB model and noticeably slower than
 MiniLM (CPU-only, no local GPU assumed here), which matters for reindex
 throughput on a large Jira/docs corpus but not for the read-time

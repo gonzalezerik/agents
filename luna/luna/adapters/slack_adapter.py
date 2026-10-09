@@ -1,4 +1,4 @@
-"""SlackAdapter (CONTRACT.md `luna/adapters/slack_adapter.py`, spec §1.5/§3.8).
+"""SlackAdapter.
 
 ## Socket Mode really does need no public endpoint (verified)
 
@@ -10,20 +10,18 @@ verifying inbound HTTP request signatures, which only matters for Bolt's HTTP
 adapter (Flask/FastAPI-mounted webhook route), never constructed here.
 `AsyncSocketModeHandler(app, app_token=...)` opens an *outbound* WebSocket
 connection to Slack; nothing in this module listens on a port or needs an
-Ingress/route. This confirms spec §1.5's claim and CONTRACT.md's "no public
-endpoint" note for real, against the actual library, not just the docs.
+Ingress/route -- verified against the actual library, not just the docs.
 
-## Mirror surface, never authoritative (spec §3.1 pushback #4)
+## Mirror surface, never authoritative
 
 Every write this module makes goes through `LunaAPIClient`
 (`luna/adapters/_api_client.py`) to **this same service's own** `luna-api`
--- `POST /ingest/slack` (this build's own route) and `POST
-/proposals/{id}/confirm|cancel|edit` (another builder's route, may not
-exist yet; failures surface as `LunaAPIError`, handled the same as any
-other API failure). Slack never gets its own copy of proposal state; every
+-- `POST /ingest/slack` and `POST /proposals/{id}/confirm|cancel|edit`;
+failures surface as `LunaAPIError`, handled the same as any other API
+failure. Slack never gets its own copy of proposal state; every
 button/modal here is a thin read-through/write-through client of the one
 `luna-api`, matching `discord_adapter.py`'s design exactly. `/record` is
-intentionally **not** wired to voice capture here -- spec §3.3 capability #3
+intentionally **not** wired to voice capture here -- capability #3
 is Discord-voice-only (Pycord sinks); this module's `/record` handler just
 tells the user to use Discord.
 
@@ -36,9 +34,9 @@ against the `views.open`/Block Kit schema. So the blocker flag here **is** a
 native `checkboxes` element (`build_status_modal_view`), not a parsed
 yes/no text field. The issue-picker, however, is still a plain
 `plain_text_input` for the same reason as Discord: populating a live
-`static_select` needs a JQL-candidate-search call that would live in
-`capabilities/status_intake.py` + `adapters/jira.py`, neither of which exist
-in this worktree.
+`static_select` needs a JQL candidate-search endpoint, and issue matching
+is already a Decision Engine Choice inside `capabilities/status_intake.py`
+-- the adapter shouldn't pre-empt it by guessing at candidates.
 
 ## Proposal edit modal genuinely opens from the button click
 
@@ -221,8 +219,7 @@ async def handle_slash_command(
         return None
 
     if command_name == "record":
-        # Voice capture is Discord-only (Pycord sinks) -- spec §3.3
-        # capability #3. Slack is a mirror surface with no voice pipeline.
+        # Voice capture is Discord-only (Pycord sinks, capability #3). Slack is a mirror surface with no voice pipeline.
         await client.chat_postEphemeral(
             channel=body["channel_id"],
             user=body["user_id"],
@@ -275,7 +272,7 @@ def _format_diff(diff: dict[str, Any]) -> str:
 
 
 def build_proposal_blocks(proposal: dict[str, Any]) -> list[dict[str, Any]]:
-    """`proposal`: CONTRACT.md's `proposal` table shape --
+    """`proposal`: the `proposal` table shape --
     `{"id", "kind", "target_jira_key", "diff_json", "confidence", "status"}`."""
     header = f"*Proposed change: {proposal.get('target_jira_key') or '(new issue)'}*"
     fields_text = f"*Kind:* {proposal.get('kind', 'unknown')}"

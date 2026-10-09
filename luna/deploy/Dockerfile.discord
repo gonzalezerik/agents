@@ -1,7 +1,7 @@
-# Multi-stage build for luna-discord. CONTRACT.md: python:3.11-slim base,
+# Multi-stage build for luna-discord: python:3.11-slim base,
 # non-root user, runs `python -m luna.entrypoints.discord_bot`.
 #
-# Build context is the repo root (same shared package as every other luna
+# Build context is this `luna/` project folder (same shared package as every other luna
 # image) -- e.g. `podman build -f deploy/Dockerfile.discord .`.
 
 FROM python:3.11-slim AS builder

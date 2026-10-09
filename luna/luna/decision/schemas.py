@@ -1,7 +1,6 @@
 """Question/Answer pydantic models for the Decision Engine.
 
-Exact shapes from CONTRACT.md's "The Decision Engine" section, which mirrors
-the real TypeSafe Jev `/v1/systemone` contract (spec §3.9) so a
+These shapes mirror the real TypeSafe Jev `/v1/systemone` contract so a
 `JevProvider` can be a drop-in for `LocalDecisionProvider` behind the same
 `DecisionProvider.decide()` interface.
 

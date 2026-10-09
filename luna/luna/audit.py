@@ -1,4 +1,4 @@
-"""Hash-chained `audit_event` writer/reader (CONTRACT.md, spec §3.6).
+"""Hash-chained `audit_event` writer/reader.
 
 Every run, prompt, tool call, and decision must be logged and tamper-evident.
 Each row's `hash_self` is a SHA-256 over its own fields *and* the previous
@@ -83,9 +83,9 @@ async def write_event(
     `id` order to `hash_prev` correctness) -- the safe pattern for
     multi-process callers (api, worker, discord, slack all writing) is to
     serialize audit writes through a single `SELECT ... FOR UPDATE` guard or
-    a dedicated writer process/queue. Not implemented here (noted as a v1
-    gap in NOTES.md) -- v1 has low write concurrency (guardrail-gated writes
-    only) so the exposure window is small, but a future integrator adding
+    a dedicated writer process/queue. Not implemented here (a known v1
+    gap) -- v1 has low write concurrency (guardrail-gated writes
+    only) so the exposure window is small, but a future change adding
     high-concurrency capabilities should close this before relying on the
     chain for real tamper-evidence guarantees under load.
     """

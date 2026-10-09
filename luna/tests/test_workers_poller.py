@@ -1,7 +1,7 @@
 """Tests for `luna/workers/poller.py`.
 
-Covers the spec §4.4 verification criterion ("poller detects an
-externally-made change within one interval") by simulating an issue that
+Covers "the poller detects an externally-made change within one interval"
+by simulating an issue that
 changed outside of LUNA and asserting `poll_once()`'s interval JQL surfaces
 it, and the resume-on-startup carve-out for `status_intake` runs parked at
 `apply` (must not resume a run whose proposal is still merely pending, but

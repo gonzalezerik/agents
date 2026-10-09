@@ -1,22 +1,19 @@
 """Shared internal helper: the httpx client both `discord_adapter.py` and
 `slack_adapter.py` use to call **their own** `luna-api` service.
 
-CONTRACT.md: "the bot calls its own API, not the other way around, to keep
-one source of truth for proposal state." So every write this build makes
-goes through here: `POST /ingest/discord` / `POST /ingest/slack` (this
-build's own `luna/api/routes/ingest.py`) and `POST
-/proposals/{id}/confirm|cancel|edit` (another builder's route -- may not
-exist yet in this worktree; calls to it will 404 until it lands, which is
-expected and handled the same as any other transport/HTTP error, see
-`LunaAPIError`).
+The bots call their own API rather than the other way around, so there is
+one source of truth for proposal state. Every write the chat layer makes
+goes through here: `POST /ingest/discord` / `POST /ingest/slack`
+(`luna/api/routes/ingest.py`) and `POST /proposals/{id}/confirm|cancel|edit`
+(`luna/api/routes/proposals.py`). Any transport or HTTP failure surfaces as
+`LunaAPIError`.
 
-Not one of CONTRACT.md's enumerated files -- a private submodule (leading
-underscore) under the already-contracted `luna/adapters/` package, holding
-~30 lines of httpx boilerplate that both adapters would otherwise duplicate.
+A private submodule (leading underscore) holding the httpx boilerplate both
+adapters would otherwise duplicate.
 
 Auth: `INTERNAL_SERVICE_TOKEN` bearer, same shared secret every other route
 in this codebase checks (`api/deps.py`). Base URL: `LUNA_API_BASE` (added to
-`luna/config.py` by this build, see its docstring there).
+`luna/config.py`, see its docstring there).
 """
 
 from __future__ import annotations

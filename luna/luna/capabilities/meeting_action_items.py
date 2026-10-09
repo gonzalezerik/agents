@@ -1,5 +1,4 @@
-"""Capability #3 -- meeting notes / transcript -> action items -> Jira
-(spec §3.3 #3, CONTRACT.md). Write-capable: always
+"""Capability #3 -- meeting notes / transcript -> action items -> Jira. Write-capable: always
 proposal -> confirm -> apply -> verify (guardrails.py), never a direct Jira
 write from this module.
 
@@ -14,27 +13,24 @@ the Decision Engine per candidate: Noul "is this an action item?", Choice
 `Proposal` rows, same pattern as capability #1: a human confirms each (or
 "confirm all") before any Jira issue is actually created.
 
-`standup.py` (capability #2, this build's other read-mostly capability)
+`standup.py` (capability #2, this module's other read-mostly capability)
 calls `propose_action_items()` directly for its own flagged action-item
-candidates, per spec "#2 may create action-item proposals routed through
-#3's confirm flow" -- there is exactly one code path that turns a candidate
+candidates (#2 may create action-item proposals routed through #3's
+confirm flow) -- there is exactly one code path that turns a candidate
 string into a pending `Proposal`, not two.
 
 ## Control-loop wiring
 
 `decide`/`plan`/`gate` are registered into `luna.control_loop`'s shared
-state machine at module import time (CONTRACT.md: capability modules
-"register their node implementations... at import time"). `apply`/`verify`
+state machine at module import time. `apply`/`verify`
 are deliberately left unregistered (the foundation's no-op passthrough
 handles them): `control_loop._drive()` runs all ten nodes synchronously in
 one pass with no built-in way for a node to pause a run and wait for an
 external event, so a human's Confirm tap cannot resume *this* run mid-drive
 today. The real apply happens through `api/routes/proposals.py`'s
-confirm-triggered `JiraAdapter.create_issue()` call (another builder's file,
-not built yet in this worktree) acting on the `Proposal` rows this run
-already wrote in `plan` -- a separate write, not a resumption of this
-control-loop run. This is a resolved ambiguity in the foundation as handed
-off, documented here and in NOTES.md rather than silently assumed.
+confirm handler, which calls `apply_meeting_action_item()` on the
+`Proposal` rows this run already wrote in `plan` -- a separate write, not a
+resumption of this control-loop run.
 """
 
 from __future__ import annotations
@@ -56,7 +52,7 @@ from luna.decision.schemas import ChoiceQuestion, NoulQuestion
 from luna.generation.generator import Generation
 from luna.guardrails import compute_idempotency_key, require_confirmation
 
-# spec §3.2's component list (mirrors the Jira Components = subteams design).
+# Jira Components = subteams.
 COMPONENTS = [
     "Chassis",
     "Power",
@@ -90,8 +86,8 @@ async def segment_transcript_into_candidates(
     speaker?}`) into candidate action-item strings via
     `Generation.generate()`. This is pure prose extraction -- the model is
     never asked whether something IS an action item here; that's
-    `propose_action_items()`'s job through the Decision Engine, per
-    CONTRACT.md's "never mixed in one call" rule."""
+    `propose_action_items()`'s job through the Decision Engine -- prose
+    and decisions are never mixed in one call."""
     if not transcript_segments:
         return []
 
@@ -139,7 +135,7 @@ async def propose_action_items(
     provider: DecisionProvider,
     candidates: list[ActionItemCandidate],
 ) -> list[Proposal]:
-    """Per spec #3: Decision Engine decides per candidate *is this an
+    """Decision Engine decides per candidate *is this an
     action item?* (Noul), *owner?* (Choice over roster), *which component?*
     (Choice). Produces `Proposal` rows added to `session` (not flushed here
     -- caller controls the transaction). Re-running this on the same

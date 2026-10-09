@@ -1,6 +1,5 @@
 """`python -m luna.entrypoints.worker` -- runs the JQL poller and the
-deadline-reminder scheduler concurrently (CONTRACT.md: "luna-worker"
-process). Both loops log and swallow their own per-tick exceptions (see
+deadline-reminder scheduler concurrently. Both loops log and swallow their own per-tick exceptions (see
 `workers/poller.py`/`workers/scheduler.py`), so `asyncio.gather` here is only
 responsible for keeping both running side by side for the life of the
 process -- if one of them ever raises out of its `run_forever()` entirely

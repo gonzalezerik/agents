@@ -1,12 +1,11 @@
-"""Capability #5 -- budget/margin watching (read-only/alerts), spec §3.3 #5.
+"""Capability #5 -- budget/margin watching (read-only/alerts).
 
 Rolls up the `Mass (kg)`, `Power (W)`, `Cost (USD)`, `Data rate (kbps)`
 custom fields by component + project total from Jira, compares each rollup
 to the matching `budget` table row (component+metric), writes
 `margin_snapshot` rows for history, and scores *overrun severity* (Score)
 for anything with a configured budget. Read-only against Jira; the
-`margin_snapshot` writes are the sidecar-history side effect spec §3.3 #5
-explicitly calls for ("margins snapshotted in sidecar for history") -- not a
+`margin_snapshot` writes keep margin history in the sidecar DB -- not a
 Jira write, so it is not gated by `guardrails.require_confirmation()`
 (that gate is specifically for Jira writes, per guardrails.py's own
 docstring).

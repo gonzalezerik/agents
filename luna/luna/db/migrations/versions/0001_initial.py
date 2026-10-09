@@ -1,4 +1,4 @@
-"""initial schema - every table in CONTRACT.md's Data model section
+"""initial schema - every LUNA table
 
 Revision ID: 0001
 Revises:

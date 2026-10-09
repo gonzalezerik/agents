@@ -1,5 +1,5 @@
 """Capability #4 -- blocker/stale detection + cross-subteam dependency
-conflict alerts (read-only/alerts), spec §3.3 #4.
+conflict alerts (read-only/alerts).
 
 Polls JQL for `status = Blocked`, staleness (`updated <= -5d` and not Done),
 and issues carrying issue-links (a best-effort proxy for "crosses
@@ -9,7 +9,7 @@ Decision Engine scores *is this a real cross-subteam dependency risk?*
 Jira; `check()` runs it start-to-finish through the real, unmodified
 `control_loop.run()` (no gate/apply/confirm needed -- read-only).
 
-## Alert payload shape (for the Discord/Slack adapter builder)
+## Alert payload shape (for the Discord/Slack adapters)
 
 `ctx.data["alerts"]` (also the return value's `.data["alerts"]`) is a list
 of:
@@ -28,7 +28,7 @@ of:
 }
 ```
 Route these to the relevant subteam channel(s) (derive from `components`)
-plus the PM/Admin channel per spec -- this module has no notion of Discord/
+plus the PM/Admin channel -- this module has no notion of Discord/
 Slack channel IDs, that's the adapter's job.
 """
 

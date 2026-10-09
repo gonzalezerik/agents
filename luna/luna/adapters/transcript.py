@@ -1,12 +1,9 @@
-"""`TranscriptAdapter` -- local `faster-whisper` batch transcription (spec
-§3.8, CONTRACT.md adapters section).
+"""`TranscriptAdapter` -- local `faster-whisper` batch transcription.
 
-CONTRACT.md: "batch only for v1... Runs as a job in `luna-worker`, not
-inline in the Discord process (voice recording can be long; don't block the
-bot's event loop on transcription)." Per this build's explicit scope,
-`luna/workers/` belongs to another builder and does not exist in this
-worktree -- this module is deliberately **not** wired to any queue/worker
-runtime. `transcribe_file()`/`transcribe_object()` are plain `async def`
+Batch only for v1, meant to run as a job in `luna-worker`, never inline in
+the Discord process (recordings can be long). This module is deliberately
+**not** wired to any queue/worker runtime -- and no worker job calls it yet
+(see `discord_adapter.py`'s "Known gap" note). `transcribe_file()`/`transcribe_object()` are plain `async def`
 methods a job runner can call directly (e.g.
 `await TranscriptAdapter().transcribe_file(path)`); `faster-whisper`'s
 actual inference call is synchronous/CPU-bound, so it's run via
@@ -28,23 +25,18 @@ the very first transcription job after a pod restart unless the model
 cache -- `HF_HOME`/`XDG_CACHE_HOME`, or `download_root` below -- is a
 persistent volume). Document a model warm-up step or a persistent cache
 mount in the `luna-worker` Deployment; this module does not attempt to
-solve that (out of scope -- `deploy/` isn't owned by this build).
+solve that.
 
-Model size defaults to `"base"` (CONTRACT.md/spec's suggested example, a
-reasonable accuracy/latency tradeoff for meeting-length audio on CPU); no
-`WHISPER_MODEL` env var exists in CONTRACT.md's canonical list, so this is a
-constructor parameter, not a `Settings` field -- callers (the worker) that
-want a different size pass it explicitly. Noted in NOTES.md as a
-CONTRACT.md-adjacent choice, not a deviation (CONTRACT.md never specifies a
-model-size env var for this).
+Model size defaults to `"base"`. It is a constructor parameter, not a
+`Settings` field -- callers (the worker) that want a different size pass it
+explicitly.
 
 ## No speaker diarization in v1
 
 The `speaker` field in each returned segment is always `None`.
 `faster-whisper`/Whisper does not do speaker diarization on its own (that
-needs a separate model, e.g. `pyannote.audio`); CONTRACT.md's spec §3.8
-return shape marks `speaker` as optional (`speaker?`) precisely because of
-this. Wiring diarization is a documented v1 gap, not silently dropped.
+needs a separate model, e.g. `pyannote.audio`); the return shape marks
+`speaker` as optional (`speaker?`) precisely because of this. Wiring diarization is a documented v1 gap, not silently dropped.
 
 ## Garage (object storage) fetch
 
@@ -119,7 +111,7 @@ class TranscriptAdapter:
     async def transcribe_file(self, path: str | Path) -> list[TranscriptSegment]:
         """Transcribe a local audio file (WAV/PCM, or anything ffmpeg/av can
         decode -- faster-whisper accepts more than just WAV in practice, but
-        CONTRACT.md scopes v1 to WAV/PCM so that's the supported contract).
+        v1 only supports WAV/PCM).
         Runs the blocking faster-whisper call in a worker thread."""
         path = Path(path)
         if not path.exists():
@@ -147,9 +139,7 @@ class TranscriptAdapter:
     ) -> list[TranscriptSegment]:
         """Fetch `key` from the configured Garage bucket, then transcribe
         it. Raises `TranscriptAdapterError` with a specific, actionable
-        message if Garage credentials aren't configured (CONTRACT.md's
-        credential-handling policy: fail loudly and specifically, don't
-        silently no-op)."""
+        message if Garage credentials aren't configured."""
         settings = settings or get_settings()
         if not (
             settings.garage_endpoint

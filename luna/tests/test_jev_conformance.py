@@ -1,8 +1,8 @@
-"""JEV conformance checklist (spec §2.4 items 1-6), run for real against
+"""JEV conformance checklist, run for real against
 `LocalDecisionProvider` -> the live local LLM endpoint. Marked
 `@pytest.mark.llm`; skipped automatically (see conftest.py) if
-`LLM_BASE_URL` is unreachable, but per CONTRACT.md these must be green
-against the real cluster endpoint before the Decision Engine is "done".
+`LLM_BASE_URL` is unreachable, but these must be green against the real
+endpoint before the Decision Engine counts as done.
 
 Item 7 (calibration/ECE) is a separate, softer test: `test_calibration.py`.
 """
@@ -26,8 +26,7 @@ pytestmark = pytest.mark.llm
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Kept modest so the whole conformance suite finishes in a few minutes
-# against a warm small model; bump via env if you want the literal 1,000
-# from spec §2.4 item 1 for a one-off thorough run.
+# against a warm small model; bump it to 1,000 for a one-off thorough run.
 FUZZ_N = 200
 FUZZ_CONCURRENCY = 4
 
@@ -276,12 +275,6 @@ async def test_item5_choice_answer_is_never_free_form(provider: LocalDecisionPro
 
 def test_item6_capabilities_never_treat_generation_output_as_a_decision() -> None:
     capabilities_dir = REPO_ROOT / "luna" / "capabilities"
-    if not capabilities_dir.exists():
-        # Not built yet in this worktree (owned by other builders per
-        # CONTRACT.md) -- the check is vacuously satisfied, but it's a real,
-        # executable check that will start firing the moment those files
-        # exist, not a comment promising someone will remember to add it.
-        pytest.skip("luna/capabilities/ does not exist yet in this worktree")
 
     violations: list[str] = []
     for path in capabilities_dir.rglob("*.py"):
@@ -300,10 +293,8 @@ def test_item6_capabilities_never_treat_generation_output_as_a_decision() -> Non
 
 def test_item6_grep_matches_ripgrep_reality() -> None:
     """Belt-and-suspenders: confirm the same check via an actual `grep`
-    subprocess (spec explicitly asks for a "grep-based lint check")."""
+    subprocess."""
     capabilities_dir = REPO_ROOT / "luna" / "capabilities"
-    if not capabilities_dir.exists():
-        pytest.skip("luna/capabilities/ does not exist yet in this worktree")
 
     result = subprocess.run(
         ["grep", "-rl", "-E", "--include=*.py", r"\.generate\(", str(capabilities_dir)],

@@ -1,4 +1,4 @@
-"""`seed/seed_jira.py` -- idempotent Jira + roster seed script (spec §3.2).
+"""`seed/seed_jira.py` -- idempotent Jira + roster seed script.
 
 Two independent halves:
 
@@ -83,13 +83,13 @@ CUSTOM_FIELDS: list[tuple[str, str]] = [
 ]
 
 # Requirement/Risk/Test/Decision(ADR)/Procurement-BOM-Item are custom issue
-# types spec §3.2 asks for; Epic/Story/Task/Sub-task/Bug already exist on
+# types LUNA uses; Epic/Story/Task/Sub-task/Bug already exist on
 # every Jira project by default and are not (re)created here.
 ISSUE_TYPES = ["Requirement", "Risk", "Test", "Decision (ADR)", "Procurement/BOM Item"]
 
 BLOCKED_STATUS_NAME = "Blocked"
 
-# (version name, release date ISO 8601 or None). Dates per spec §3.2.
+# (version name, release date ISO 8601 or None): C3 competition and class milestones.
 VERSIONS: list[tuple[str, str | None]] = [
     ("Statement-of-Intent", None),
     ("PDR", None),
@@ -249,8 +249,8 @@ async def _ensure_epics_and_starters(jira: JiraAdapter, project_key: str) -> dic
 async def seed_jira(project_key: str = DEFAULT_PROJECT_KEY) -> dict[str, Any]:
     """Runs the full Jira-side seed, in dependency order (components/fields/
     issue types/status/versions before the issues that reference them).
-    Raises (does not swallow) on any failure -- CONTRACT.md's "fail loudly
-    and specifically" credential/config policy applies here too."""
+    Raises (does not swallow) on any failure -- fail loudly and
+    specifically."""
     jira = JiraAdapter()
     try:
         summary: dict[str, Any] = {}

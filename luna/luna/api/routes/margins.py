@@ -1,6 +1,6 @@
-"""`GET /margins`, `GET /budgets` (CONTRACT.md API surface) -- read views over
+"""`GET /margins`, `GET /budgets` -- read views over
 `budget_watcher`'s (#5) sidecar history/config tables, for the dashboard.
-Not wired into `luna/api/main.py` here -- the integrator does that.
+Mounted by `luna/api/main.py`.
 """
 
 from __future__ import annotations

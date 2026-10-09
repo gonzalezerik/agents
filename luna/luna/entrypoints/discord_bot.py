@@ -2,9 +2,8 @@
 
 Wires `luna/adapters/discord_adapter.py`'s `Bot` instance and slash commands.
 A missing/placeholder `DISCORD_BOT_TOKEN` is fatal to this whole process --
-nothing it does is useful without a real bot session, same "crash-loop with
-a clear, specific log message" pattern the abandoned Cairn project's
-`cairn-bot` used (this repo's owner explicitly asked for it repeated here).
+nothing it does is useful without a real bot session, so it crash-loops
+with a clear, specific log message.
 This is deliberately different from a feature-specific credential like
 `GARAGE_*` (see `discord_adapter.py`'s `/record` handling), which fails
 loudly only for the one feature that needs it and leaves the rest of the bot

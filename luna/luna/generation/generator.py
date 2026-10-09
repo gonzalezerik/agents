@@ -1,12 +1,11 @@
 """`Generation.generate()` -- free-form prose only, never a typed decision.
 
-CONTRACT.md: "Free-form prose (summaries, draft docs) goes through
-`Generation.generate()` instead [of the Decision Engine], which has no
-schema constraint and never produces a decision -- the two must not be
-mixed in one call." This module implements the concrete prompt-injection
-defense spec §3.6 requires for the generation path: "Generation runs with a
-strict system prompt, no tool access, output never executed. Retrieved
-content is delimited and labeled untrusted."
+Free-form prose (summaries, draft docs) goes through `Generation.generate()`
+instead of the Decision Engine: no schema constraint, never a decision, and
+the two are never mixed in one call. This module implements the prompt-injection
+defense for the generation path: a strict system prompt, no tool access,
+output never executed, and retrieved content delimited and labeled
+untrusted.
 
 ## Design decisions carried over from `decision/local_provider.py`
 
@@ -41,7 +40,7 @@ documents in detail. Two of its findings apply here too:
   long *answer* (not hidden reasoning) can still legitimately hit the first
   budget.
 
-## Untrusted content handling (spec §3.6, the load-bearing part of this file)
+## Untrusted content handling
 
 `generate()` takes `instructions: str` (authored by capability *code*, never
 by an external party -- e.g. an f-string built from a Python literal) and a
@@ -158,8 +157,7 @@ class Generation:
         piece of externally-sourced text must arrive as one or more
         `Untrusted[str]` in `untrusted` -- never concatenated into
         `instructions` directly. Returns the generated text verbatim; the
-        caller must never `exec()`/`eval()` it or treat it as a tool call
-        (spec §3.6: "output never executed").
+        caller must never `exec()`/`eval()` it or treat it as a tool call.
 
         `enable_thinking=False` by default -- see module docstring for the
         live finding that a hybrid-reasoning model's chain-of-thought can

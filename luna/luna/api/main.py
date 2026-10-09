@@ -1,14 +1,12 @@
 """FastAPI app factory used by the `luna-api` entrypoint.
 
 Mounts every route module under `luna/api/routes/`. `webhook.py` is
-conditionally mounted since spec §3.8/3.11 treats Jira webhook mode as an
+conditionally mounted since Jira webhook mode is an
 opt-in alternative to the default polling path.
 
-Migration policy (CONTRACT.md: "pick one [initContainer or boot-time
-upgrade], don't do both, note it in README"): this build runs `alembic
+Migration policy: this module runs `alembic
 upgrade head` once at `luna-api` process boot, in this factory's lifespan
-handler, not via an initContainer -- noted here and in NOTES.md since this
-build doesn't own README.md.
+handler, not via an initContainer.
 """
 
 from __future__ import annotations

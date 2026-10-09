@@ -1,16 +1,12 @@
-"""SQLAlchemy 2.0 async declarative models for every table in CONTRACT.md's
-"Data model" section (spec §3.5).
+"""SQLAlchemy 2.0 async declarative models for every LUNA table.
 
 Primary keys: UUID for everything except `audit_event.id`, which is a
 monotonic bigserial (the hash chain needs strict, gap-aware ordering that a
-random UUID can't give you). CONTRACT.md says "UUIDv7 (or plain UUID4 if the
-library isn't handy -- note the choice)": this project's approved dependency
-list (pyproject.toml, fixed by CONTRACT.md's owning task) does not include a
-uuid7 library, so we use stdlib `uuid.uuid4`. Noted in NOTES.md.
+random UUID can't give you). UUIDv7 would be nicer, but the dependency
+list has no uuid7 library, so we use stdlib `uuid.uuid4`.
 
-Timestamp columns: CONTRACT.md says "every table gets created_at/updated_at
-unless already listed with its own timestamp columns" in the Data model
-section. Applied literally: tables that already list a timestamp column
+Timestamp columns: every table gets created_at/updated_at unless it already
+has its own timestamp columns. Concretely: tables that already list a timestamp column
 (agent_run: started_at/ended_at; decision_call/artifact: created_at;
 jira_change: applied_at; audit_event: ts; margin_snapshot: ts; budget:
 updated_at; embedding: updated_at) get exactly the listed columns and no
@@ -78,8 +74,7 @@ class EmbeddingSourceType(enum.StrEnum):
 class RunStatus(enum.StrEnum):
     """agent_run.status -- control_loop.py node names plus terminal states.
 
-    Not spelled out as an enum in CONTRACT.md's Data model section (the
-    column is just `status`), but control_loop.py (spec §3.4) needs a closed
+    The column is just `status`, but control_loop.py needs a closed
     set of node names to drive its state machine and to know which runs are
     "non-terminal" and eligible for `resume()`. Shared here so both modules
     import the same source of truth instead of duplicating string literals.
@@ -280,7 +275,7 @@ class Embedding(Base):
     source_ref: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     chunk: Mapped[str] = mapped_column(Text, nullable=False)
     # 768 dims to match the local embedding model; fixed -- changing it needs
-    # a full migration + reindex, don't casually alter (CONTRACT.md).
+    # a full migration + reindex, don't casually alter.
     vector: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

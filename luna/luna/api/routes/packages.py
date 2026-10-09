@@ -1,8 +1,7 @@
-"""`POST /packages/generate` (CONTRACT.md API surface, spec §3.3 #7).
+"""`POST /packages/generate`.
 
-Per CONTRACT.md, this module defines an `APIRouter` named `router` and does
-**not** touch `luna/api/main.py` -- the integrator wires
-`app.include_router(packages.router)` there.
+Defines an `APIRouter` named `router`; `luna/api/main.py` mounts it with
+`app.include_router(packages.router)`.
 """
 
 from __future__ import annotations

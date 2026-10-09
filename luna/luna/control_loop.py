@@ -1,4 +1,4 @@
-"""The checkpointed control-loop state machine (CONTRACT.md, spec §3.4).
+"""The checkpointed control-loop state machine.
 
 `Ingest -> Normalize -> Retrieve -> Decide -> Plan -> Gate -> Apply -> Verify
 -> Log -> Respond`, implemented as a plain Python state machine, not a
@@ -8,20 +8,19 @@ after every node so a crash mid-run resumes cleanly; `resume(run_id)` picks
 up any `agent_run` left in a non-terminal state and continues from the node
 recorded in its checkpoint.
 
-## What's deliberately stubbed here (see NOTES.md for the full note)
+## Node registry
 
-CONTRACT.md scopes `luna/capabilities/*.py` to other builders, and none of
-them exist yet in this worktree. This module cannot import capability logic
-that doesn't exist, so nodes are resolved through a small runtime registry
+This module never imports capability logic. Nodes are resolved through a
+small runtime registry
 (`register_node`) that capability modules are expected to populate at import
 time (e.g. `control_loop.register_node("status_intake", RunStatus.decide,
 my_decide_fn)`). Any node with nothing registered for a given
 `(capability, node)` pair runs a **no-op pass-through** (returns `ctx`
 unchanged) rather than raising -- this keeps `run()`/`resume()` fully
-exercisable (and testable, `tests/test_control_loop.py`) before any
-capability exists, at the cost of silently "succeeding" through unimplemented
-stages if a capability module forgets to register a node it needs. Documented
-as an explicit, intentional deviation, not an oversight.
+exercisable (and testable, `tests/test_control_loop.py`) on its own, at the
+cost of silently "succeeding" through unimplemented stages if a capability
+module forgets to register a node it needs -- which is why
+`luna/capabilities/__init__.py` imports every capability for registration.
 """
 
 from __future__ import annotations
@@ -167,7 +166,7 @@ async def resume(session: AsyncSession, run_id: uuid.UUID) -> RunContext:
     """Resume any `agent_run` left in a non-terminal state, continuing from
     the node recorded in its checkpoint. `workers/poller.py` and the API's
     proposal-confirm handler both call this on startup for every non-terminal
-    run (CONTRACT.md)."""
+    run."""
     result = await session.execute(select(AgentRun).where(AgentRun.id == run_id))
     run_row = result.scalar_one_or_none()
     if run_row is None:

@@ -1,8 +1,7 @@
-"""`POST /rag/query` (CONTRACT.md API surface, spec §3.3 #6).
+"""`POST /rag/query`.
 
-Per CONTRACT.md, this module defines an `APIRouter` named `router` and does
-**not** touch `luna/api/main.py` -- the integrator wires
-`app.include_router(rag.router)` there.
+Defines an `APIRouter` named `router`; `luna/api/main.py` mounts it with
+`app.include_router(rag.router)`.
 """
 
 from __future__ import annotations

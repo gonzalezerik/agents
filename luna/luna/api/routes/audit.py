@@ -1,4 +1,4 @@
-"""`GET /audit?...` (CONTRACT.md API surface) -- read + verify the
+"""`GET /audit?...` -- read + verify the
 hash-chained audit log for the dashboard's AI-quality review view."""
 
 from __future__ import annotations

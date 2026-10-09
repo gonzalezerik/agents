@@ -1,22 +1,21 @@
-"""Capability #8 -- deadline reminders (read-only/posts), spec §3.3 #8.
+"""Capability #8 -- deadline reminders (read-only/posts).
 
-Maps Jira versions (release dates = C3 competition/class milestones, spec
-§3.2) to scheduled reminders with configurable lead times.
+Maps Jira versions (release dates = C3 competition/class milestones) to
+scheduled reminders with configurable lead times.
 `luna/workers/scheduler.py` drives `check()` on an interval; each run lists
 Jira versions, computes days-until-release, and for any version whose
 days-until exactly crosses a configured lead time produces a reminder
 payload.
 
 No Decision Engine question is asked here -- "is this version N days out"
-is a deterministic date computation, not a semantic judgment, and spec
-§3.3 #8 doesn't list a Choice/Score/Noul question for this capability
-(unlike #1/#4/#5). `decide` is therefore a plain data-transform node, not a
+is a deterministic date computation, not a semantic judgment (unlike
+#1/#4/#5). `decide` is therefore a plain data-transform node, not a
 `decide_many()` call -- kept as a separate node anyway (rather than folded
-into `retrieve`) so it stays easy to slot a real question in later if the
-spec ever grows one (e.g. "how urgently should this be reworded for a
+into `retrieve`) so it stays easy to slot a real question in later if one
+is ever needed (e.g. "how urgently should this be reworded for a
 near-term deadline").
 
-## Reminder payload shape (for the Discord/Slack adapter builder)
+## Reminder payload shape (for the Discord/Slack adapters)
 
 `ctx.data["reminders"]` is a list of:
 ```

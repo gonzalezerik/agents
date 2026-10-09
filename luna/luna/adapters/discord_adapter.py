@@ -1,12 +1,11 @@
-"""DiscordAdapter (CONTRACT.md `luna/adapters/discord_adapter.py`, spec §1.5/§3.8).
+"""DiscordAdapter.
 
 ## Library choice: py-cord, not discord.py
 
 `py-cord>=2.8` is used instead of `discord.py`. Both expose the same
 application-command/modal API surface (they share a common ancestor), but
 only py-cord ships `VoiceClient.start_recording(sink, callback)` and the
-`discord.sinks` module (`PCMSink`/`WaveSink`/...) that spec §1.5 and
-CONTRACT.md's DiscordAdapter section both call out by name for the `/record`
+`discord.sinks` module (`PCMSink`/`WaveSink`/...) needed for the `/record`
 capability -- discord.py's `voice_client` has no recording API at all.
 Installed as `py-cord[voice]` (pulls in PyNaCl + davey) so voice connect
 actually works; the base `py-cord` install alone does not need those, and
@@ -17,36 +16,29 @@ raise `MissingVoiceDependenciesError` at connect time without it.
 
 Every command here is either a slash command or a modal submission --
 `discord.Intents.default()` is used as-is in `build_bot()`, and the
-privileged `Message Content` intent is never requested, per spec §1.5
-("Modals are the clean way to collect structured status **without** the
-privileged Message Content intent") and CONTRACT.md's DiscordAdapter section
-("Only request the privileged Message Content intent if a capability
-genuinely needs free-text listening outside a modal"). No capability in this
-build's scope needs that.
+privileged `Message Content` intent is never requested: modals collect
+structured status without it, and no capability needs free-text listening
+outside a modal.
 
-## Modal deviation from CONTRACT.md's sketch
+## Why the `/status` modal has no issue picker
 
-CONTRACT.md describes the `/status` modal as containing "an issue-picker
-select populated by calling luna-api". Checked against py-cord 2.8.1's
+The original design called for an issue-picker select populated by calling
+luna-api. Checked against py-cord 2.8.1's
 stable `discord.ui.Modal` API: it accepts only `discord.ui.InputText`
 children (short/paragraph text fields) -- no select menu or checkbox
 component is legal inside a *stable* Discord modal. (py-cord 2.8 also ships
 an unstable `DesignerModal`/Components-v2 API with `Select`/`Checkbox`
 modal items, added very recently for Discord's newest, still-rolling-out
 modal features; not used here -- too new/unverified for a project a human
-can't yet even test against a real bot token, see NOTES.md.) Separately, an
-"issue-picker populated by calling luna-api" would need a live
-JQL-candidate-search endpoint, which would live in
-`capabilities/status_intake.py` + `adapters/jira.py` -- neither exists in
-this worktree (out of this build's scope; capability #1's own spec text
-says issue matching is itself a Choice decision the Decision Engine makes,
-not something this adapter should pre-empt by guessing at candidates).
+can't yet even test against a real bot token.) Separately, an issue picker
+would need a live JQL candidate-search endpoint, and capability #1 already
+treats issue matching as a Decision Engine Choice -- not something this
+adapter should pre-empt by guessing at candidates.
 
 So `StatusModal` ships three plain `InputText` fields instead:
 - `issue_key` (optional free text, e.g. "C3-142"; blank means "let the
-  status_intake capability figure out which issue this is about" -- exactly
-  spec capability #1's "which issue does this reference? (Choice over
-  JQL-retrieved candidates)").
+  status_intake capability figure out which issue this is about" -- its
+  "which issue does this reference?" Choice over JQL-retrieved candidates).
 - `update_text` (required, paragraph style -- the free-form status).
 - `is_blocker` (required short text, parsed yes/no -- modals have no native
   checkbox/boolean component in the stable API either).
@@ -59,19 +51,14 @@ either.
 
 ## Proposal cards / Confirm-Edit-Cancel
 
-`build_proposal_embed()` + `ProposalActionView` render a `proposal` row
-(CONTRACT.md's `proposal` table shape: `id, kind, target_jira_key,
-diff_json, confidence, status`) as a Discord embed with three buttons, each
+`build_proposal_embed()` + `ProposalActionView` render a `proposal` row as a Discord embed with three buttons, each
 wired to **this same service's own** `POST /proposals/{id}/confirm|cancel|edit`
 via `LunaAPIClient` (`luna/adapters/_api_client.py`) -- never a second
-source of truth, per CONTRACT.md's "the bot calls its own API" design. That
-route belongs to another builder and does not exist in this worktree yet;
-button clicks will get a `LunaAPIError` (wrapping a 404) until it lands,
-which this module handles the same as any other API failure (log + tell the
-user, don't crash).
+source of truth: the bot calls its own API. Any failure surfaces as a
+`LunaAPIError`, handled like any other API failure (log + tell the user,
+don't crash).
 
-## Voice recording handoff contract (the seam another builder's
-`TranscriptAdapter` is expected to consume)
+## Voice recording handoff (the seam `TranscriptAdapter` consumes)
 
 `/record` toggles a per-guild recording (`_ACTIVE_RECORDINGS`, in-process
 state -- fine for a single bot process). On start: joins the invoking user's
@@ -80,38 +67,31 @@ callback, ...)`. On stop (second `/record`, or the sink's own finish):
 
 1. For each speaker in `sink.audio_data` (py-cord keys this by Discord user
    id), the raw audio bytes are written to a local temp file
-   (`tempfile.mkstemp`) -- CONTRACT.md/spec: "writing raw PCM to a temp
-   file". One file per speaker, not one merged file, because capability #3
+   (`tempfile.mkstemp`). One file per speaker, not one merged file, because capability #3
    (`meeting_action_items`) needs per-speaker audio to answer its own
    *"owner? (Choice over roster)"* decision -- merging streams here would
    throw that attribution away before it's even a capability's problem.
 2. Each temp file is uploaded to Garage (S3-compatible; `boto3`, added to
-   `pyproject.toml` by this build) under `GARAGE_BUCKET`, key
+   `pyproject.toml` by this module) under `GARAGE_BUCKET`, key
    `voice/{guild_id}/{channel_id}/{uuid}-{speaker_id}.pcm`
    (`upload_recording_to_garage`). This runs off the event loop
-   (`asyncio.to_thread`) since boto3 is synchronous -- spec/CONTRACT.md:
-   "don't block the bot's event loop on transcription" (uploading is not
-   transcription, but the same rule applies to any slow I/O in this
-   process).
+   (`asyncio.to_thread`) since boto3 is synchronous -- slow I/O must never
+   block the bot's event loop.
 3. One `POST /ingest/discord` event per speaker, `type: "voice_recording"`,
    carrying the Garage object key (not a local path -- the temp file is
    deleted right after upload) and basic audio metadata. See
    `luna/api/routes/ingest.py`'s docstring for the exact JSON shape.
-4. **What happens after that POST is not this module's problem.** This
-   build does not know `TranscriptAdapter`'s real interface (owned by
-   another builder, not present in this worktree) or how `luna-worker` will
-   discover new recordings to transcribe -- by polling `agent_run` rows with
-   `capability="meeting_action_items"` and
-   `checkpoint_json.data.type="voice_recording"`, by a dedicated queue, or
-   something else is that builder's call. This is the "clean, documented
-   seam" CONTRACT.md's task brief asked for, not a new DB table.
+4. **Known gap: nothing transcribes the recording yet.** The ingest route
+   starts a `meeting_action_items` run, but no worker downloads the object
+   and runs `TranscriptAdapter` on it, so that run currently sees no
+   transcript segments. Wiring a transcription job into `luna-worker` is
+   the missing piece; the HTTP event is the seam it should consume.
 
 If `GARAGE_ENDPOINT`/`GARAGE_ACCESS_KEY_ID`/`GARAGE_SECRET_ACCESS_KEY` are
 not fully set, `upload_recording_to_garage` raises `GarageNotConfiguredError`
 -- `handle_recording_finished` catches it per speaker, logs a specific
 actionable error, and skips that speaker's audio (dropped, not queued)
-rather than crashing the bot process. This matches CONTRACT.md's
-credential-handling policy: Garage is a feature-specific credential (only
+rather than crashing the bot process. Credential policy: Garage is a feature-specific credential (only
 `/record` needs it), not a whole-process-fatal one like `DISCORD_BOT_TOKEN`
 (see `luna/entrypoints/discord_bot.py`).
 
@@ -200,7 +180,7 @@ def parse_yes_no(raw: str) -> bool:
 
 
 class StatusModal(discord.ui.Modal):
-    """See module docstring "Modal deviation from CONTRACT.md's sketch"."""
+    """See module docstring "Why the `/status` modal has no issue picker"."""
 
     def __init__(self, api_client: LunaAPIClient, *, channel_id: str, guild_id: str | None) -> None:
         super().__init__(title="Status update")
@@ -335,7 +315,7 @@ def _format_diff(diff: dict[str, Any]) -> str:
 
 
 def build_proposal_embed(proposal: dict[str, Any]) -> discord.Embed:
-    """`proposal`: CONTRACT.md's `proposal` table shape --
+    """`proposal`: the `proposal` table shape --
     `{"id", "kind", "target_jira_key", "diff_json", "confidence", "status"}`."""
     embed = discord.Embed(
         title=f"Proposed change: {proposal.get('target_jira_key') or '(new issue)'}",
@@ -437,8 +417,7 @@ class ProposalActionView(discord.ui.View):
 
 
 class GarageNotConfiguredError(RuntimeError):
-    """Raised when GARAGE_* credentials aren't fully set. Per CONTRACT.md's
-    credential policy this is a feature-specific failure (only `/record`
+    """Raised when GARAGE_* credentials aren't fully set. This is a feature-specific failure (only `/record`
     needs Garage), not fatal to the whole `luna-discord` process."""
 
 

@@ -1,18 +1,16 @@
-"""Capability -> required Jira/roster scope checks (CONTRACT.md).
+"""Capability -> required Jira/roster scope checks.
 
-CONTRACT.md explicitly allows this to be "minimal/stubbed if the concrete
-rules aren't yet clear from spec, but the interface must exist for other
-modules to import." The spec (§3.2 roster, §3.6 "scoped credentials") talks
-about read-only vs write-capable Jira principals and per-capability write
-policy (R vs W, spec §3.3's numbered capability list), but does not define a
-concrete permission matrix beyond "every Jira write = proposal -> confirm ->
+Deliberately minimal: the interface exists so other modules can import it,
+but the concrete rules aren't defined yet. The design distinguishes
+read-only vs write-capable Jira principals and per-capability write policy
+(R vs W), but does not define a concrete permission matrix beyond "every Jira write = proposal -> confirm ->
 apply -> verify, no exceptions" (which guardrails.py already enforces
 unconditionally, independent of any role check here).
 
 This module gives capabilities a single, stable place to ask "is this actor
 allowed to do X" without hardcoding Jira-role assumptions into each
 capability module. The current implementation is intentionally
-permissive/stubbed (see NOTES.md) -- it exists so `capabilities/*.py` can
+permissive/stubbed -- it exists so `capabilities/*.py` can
 import and call it now, and a real policy (backed by `roster.subteams` /
 `roster.licensed_bool`, or Jira's own permission scheme via 3LO) can be
 dropped in later without changing every call site.
@@ -37,7 +35,7 @@ class Scope(StrEnum):
 
 # capability name (as used in agent_run.capability / luna/capabilities/*.py
 # module names) -> the scopes it needs. Left intentionally small: only the
-# write-capable capabilities from spec §3.3 are listed (#1, #3, #7); every
+# write-capable capabilities are listed (#1, #3, #7); every
 # other capability (#2, #4, #5, #6, #8) is read-only and only needs
 # JIRA_READ, which every capability is granted by default below.
 CAPABILITY_SCOPES: dict[str, frozenset[Scope]] = {
@@ -84,6 +82,5 @@ def can_perform(actor: Actor, capability: str, scope: Scope) -> bool:
         return True
     # v1: no further per-user restriction. Tighten here (e.g. checking
     # roster.licensed_bool / roster.subteams against the target component)
-    # once the concrete policy is defined -- CONTRACT.md explicitly allows
-    # shipping this stubbed for now.
+    # once the concrete policy is defined.
     return True

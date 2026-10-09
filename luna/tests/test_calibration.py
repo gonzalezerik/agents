@@ -1,10 +1,8 @@
-"""Calibration harness (spec §2.4 item 7) -- a small hand-labeled eval set,
+"""Calibration harness -- a small hand-labeled eval set,
 reliability bins, and Expected Calibration Error (ECE) against
 `LocalDecisionProvider` on the live endpoint.
 
-**This is an explicitly soft target for v1** (CONTRACT.md: "log the number,
-don't hard-fail CI on it yet", spec §2.5's honesty requirement that local
-models will calibrate worse than Jev's RLCD-trained model). This test does
+**This is an explicitly soft target for v1**. This test does
 NOT assert `ECE < 0.10`. It computes and logs the real number (printed, and
 written to `calibration_report.md` in the test's tmp output dir), and only
 fails on outright infrastructure problems (an exception, a malformed
@@ -43,7 +41,7 @@ BLOCKER_QUESTION = NoulQuestion(
 # ~50 hand-labeled examples: 40 mood (Choice) + 10 blocker (Noul), covering
 # the kind of text capabilities #1/#4 will actually see (status updates,
 # standup chatter). Labels are the author's own judgment, not sourced from a
-# public dataset -- documented as such per spec §2.5's honesty requirement.
+# public dataset.
 MOOD_EXAMPLES: list[tuple[str, str]] = [
     ("I'm thrilled with how the demo went today!", "happy"),
     ("Finally got the chassis mount working, feels great.", "happy"),

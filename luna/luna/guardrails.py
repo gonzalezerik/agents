@@ -1,8 +1,8 @@
-"""Guardrails (CONTRACT.md "Guardrails", spec §3.6) -- non-negotiable.
+"""Guardrails -- non-negotiable.
 
 - No Jira write ever skips proposal -> confirm -> apply -> verify. There is
   no confidence threshold that auto-applies. `require_confirmation()`
-  always returns True for Jira writes in v1 (the only spec-allowed exception
+  always returns True for Jira writes in v1 (the only exception
   is capability #7, which never calls this module at all -- it only does a
   PR-gated git commit).
 - Every inbound chat/Jira/doc string must be wrapped in `Untrusted[str]`
@@ -34,8 +34,7 @@ class Untrusted(Generic[T]):
     `Generation.generate()` or a Decision question's `state` without
     consciously unwrapping (and, per the rule above, gating) it first.
 
-    Deliberately not a plain `NewType(str)` alias, even though CONTRACT.md
-    calls it a "newtype": a bare NewType is erased at runtime and gives no
+    Deliberately not a plain `NewType(str)` alias: a bare NewType is erased at runtime and gives no
     way to attach the source/gate-result metadata capabilities will want to
     log to the audit trail (which adapter it came from, whether the
     injection gate already ran on it). A frozen dataclass wrapper is the
@@ -56,11 +55,11 @@ def untrusted(value: T, *, source: str = "unknown") -> Untrusted[T]:
 def require_confirmation(*, kind: str, jira_write: bool = True) -> bool:
     """Whether a proposal of this `kind` requires human confirm before
     Apply. In v1 this is unconditionally True for every Jira-writing
-    capability -- there is no confidence threshold that bypasses it, per
-    spec §3.6's "no exceptions, no auto-apply above 0.99".
+    capability -- there is no confidence threshold that bypasses it: no
+    exceptions, no auto-apply even above 0.99.
 
     `jira_write=False` is for capability #7 (design-review package
-    assembly), the one spec-documented exception: it never writes to Jira,
+    assembly), the one exception: it never writes to Jira,
     only commits to the docs git repo behind a PR, so it is not gated by
     this function at all in practice -- callers for #7 should not even call
     this, but the parameter exists so the "no exceptions for Jira" invariant
@@ -70,7 +69,7 @@ def require_confirmation(*, kind: str, jira_write: bool = True) -> bool:
     if jira_write:
         return True
     raise NotImplementedError(
-        "require_confirmation() was called with jira_write=False. Per spec §3.6, "
+        "require_confirmation() was called with jira_write=False. By design, "
         "only capability #7 (git-only, PR-gated) is exempt from human confirmation, "
         "and #7 should never route through this function at all -- it has no Jira "
         "write to gate. If you're adding a new non-Jira write path, get an explicit "

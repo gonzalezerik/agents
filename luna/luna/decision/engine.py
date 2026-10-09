@@ -1,15 +1,13 @@
 """`DecisionProvider` protocol + `decide_one`/`decide_many` helpers.
 
-CONTRACT.md: "Never let a capability call the local LLM directly for a
-decision -- it must go through `DecisionProvider.decide()`." This module is
-that one door. Free-form prose goes through `Generation.generate()` instead
+No capability calls the local LLM directly for a decision -- it must go
+through `DecisionProvider.decide()`. This module is that one door. Free-form prose goes through `Generation.generate()` instead
 (owned elsewhere, not imported here) -- the two are never mixed in one call.
 
 `decide_one`/`decide_many` are the layer capabilities actually call: they
-wrap a bare `DecisionProvider.decide()` with the audit/caching behavior
-CONTRACT.md requires ("every decide() call writes one decision_call row...
-cache on (state_hash, questions_hash, model_id) so a retried capability run
-doesn't re-call the model").
+wrap a bare `DecisionProvider.decide()` with audit and caching: every call
+writes one `decision_call` row, cached on (state_hash, questions_hash,
+model_id) so a retried capability run doesn't re-call the model.
 """
 
 from __future__ import annotations
@@ -50,7 +48,7 @@ def hash_questions(questions: dict[str, Question]) -> str:
 
 @runtime_checkable
 class DecisionProvider(Protocol):
-    """CONTRACT.md's `DecisionProvider` interface, verbatim."""
+    """The provider interface every decision backend implements."""
 
     provider_name: str
     model_id: str
@@ -63,7 +61,7 @@ class DecisionProvider(Protocol):
 def get_decision_provider(settings: Settings | None = None) -> DecisionProvider:
     """The provider factory. Always returns `LocalDecisionProvider` unless
     `DECISION_PROVIDER=jev` *and* `settings.allow_jev_provider()` is True --
-    presence of `TYPESAFE_API_KEY` alone is never enough (CONTRACT.md).
+    presence of `TYPESAFE_API_KEY` alone is never enough.
     """
     settings = settings or get_settings()
 
@@ -108,7 +106,7 @@ async def _lookup_cached(
     # against the same state (e.g. two capabilities on one Jira event); the
     # index is on state_hash for locality, but the cache key is the full
     # triplet, so re-check questions_hash (kept out of the indexed column
-    # set per CONTRACT.md's schema -- it's derivable from questions_json).
+    # set -- it's derivable from questions_json).
     if hashlib.sha256(_canonical_json(row.questions_json).encode()).hexdigest() != questions_hash:
         return None
     return row
@@ -179,7 +177,7 @@ def _parse_answer(question_type: str, raw: dict[str, Any]) -> Answer:
 def _summary_confidence(answers: dict[str, Answer]) -> float | None:
     """`decision_call.confidence` is a single column; when a batch answers
     multiple questions we store the mean confidence across the Choice/Score
-    answers in the batch (Noul has no confidence field per spec). None if
+    answers in the batch (Noul has no confidence field). None if
     the batch is Noul-only."""
     values = [a.confidence for a in answers.values() if hasattr(a, "confidence")]
     if not values:

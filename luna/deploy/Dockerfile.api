@@ -1,7 +1,7 @@
-# Multi-stage build for luna-api. CONTRACT.md: python:3.11-slim base,
+# Multi-stage build for luna-api: python:3.11-slim base,
 # non-root user, runs `python -m luna.entrypoints.api`.
 #
-# Build context is the repo root (so `luna/`, `alembic.ini`, `pyproject.toml`
+# Build context is this `luna/` project folder (so `luna/`, `alembic.ini`, `pyproject.toml`
 # are all reachable) -- e.g. `docker build -f deploy/Dockerfile.api .`.
 
 FROM python:3.11-slim AS builder

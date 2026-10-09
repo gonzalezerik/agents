@@ -1,8 +1,7 @@
-"""JQL poller loop (`luna-worker`) -- spec §3.8, CONTRACT.md.
+"""JQL poller loop (`luna-worker`).
 
 On each tick: `search_jql("updated >= -{N}m")` to detect issues that changed
-externally since the last tick (spec §4.4 verification criterion #3: "poller
-detects an externally-made change within one interval"), then runs the
+externally since the last tick, then runs the
 read-only alert capabilities (#4 `blocker_dependency`, #5 `budget_watcher`),
 which each re-derive their own full current view from Jira rather than
 reacting to the delta -- simpler and correct at this project's scale (one
@@ -12,9 +11,8 @@ alert capabilities.
 
 ## Resume-on-startup, with one deliberate carve-out
 
-CONTRACT.md: "workers/poller.py and the API's proposal-confirm handler both
-call `control_loop.resume(run_id)` on startup for any `agent_run` left in a
-non-terminal state." Followed literally for every capability *except*
+On startup the poller calls `control_loop.resume(run_id)` for any
+`agent_run` left in a non-terminal state -- for every capability *except*
 `status_intake` runs sitting at `RunStatus.apply` -- those are deliberately
 paused, waiting for a human to hit Confirm (see
 `luna/capabilities/status_intake.py`'s module docstring for why

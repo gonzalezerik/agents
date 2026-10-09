@@ -1,5 +1,4 @@
-"""Capability #7 -- deliverable / design-review package assembly (spec §3.3
-#7, CONTRACT.md). Read-only against requirements/risks/tests/margins/docs
+"""Capability #7 -- deliverable / design-review package assembly. Read-only against requirements/risks/tests/margins/docs
 data -> draft prose via `Generation.generate()` -> git commit to the docs
 repo, on a feature branch, never `main` and never auto-merged (a human
 opens the PR by hand -- this module never talks to a Forgejo/GitHub PR API).
@@ -14,7 +13,7 @@ all.
 
 Inputs are accepted as plain structured data (`PackageSpec`/
 `PackageSectionInput`), never by reaching into `adapters.jira`/docs-repo
-internals -- CONTRACT.md's scope boundary, same convention as
+internals -- same convention as
 `rag_qna.reindex()`.
 
 ## Per-section sufficiency gate
@@ -22,7 +21,7 @@ internals -- CONTRACT.md's scope boundary, same convention as
 Before drafting prose for a section, a `NoulQuestion` asks whether the
 supplied input bullets are substantial enough to write a real section from.
 This mirrors `rag_qna.answer_question()`'s insufficient-retrieval gate, for
-the same spec §3.6 reason: don't let `Generation.generate()` hallucinate a
+the same reason: don't let `Generation.generate()` hallucinate a
 full PDR/CDR section from thin input. A section that fails the gate is
 rendered as a `TODO: insufficient input` placeholder instead of invented
 prose. This also happens to be what makes this file's `.generate()` call
@@ -182,12 +181,10 @@ def commit_package_to_docs_repo(
     """Clones (or reuses) `repo_url` at `clone_dir`, checks out a new
     branch, writes `draft.markdown` to `file_path`, commits, and (if
     `push=True`) pushes the branch -- never `main`, never a merge or PR
-    creation (spec §3.3#7/§3.6: "never auto-submits", a human opens the
-    PR). Returns the new commit's SHA.
+    creation. Returns the new commit's SHA.
 
-    Plain `git` CLI via `subprocess`, matching CONTRACT.md's pyproject
-    guidance ("plain subprocess calls to the git CLI against a local clone
-    is simplest"). `repo_token` is spliced into the clone URL for HTTPS
+    Plain `git` CLI via `subprocess` against a local clone -- simplest, and
+    no extra dependency. `repo_token` is spliced into the clone URL for HTTPS
     auth (the conventional way to use a Forgejo/GitHub token non-
     interactively); a `file://` URL (what this module's own tests use, and
     what a local bare repo needs) is left untouched.

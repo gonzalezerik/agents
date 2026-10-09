@@ -1,10 +1,8 @@
-"""`POST /proposals/{id}/confirm`, `/cancel`, `/edit` (CONTRACT.md API
-surface). The one human-in-the-loop surface guardrails.py requires for every
+"""`POST /proposals/{id}/confirm`, `/cancel`, `/edit`.
+
+The one human-in-the-loop surface guardrails.py requires for every
 Jira write -- see `luna/capabilities/status_intake.py`'s module docstring for
 how a `Proposal` reaching here connects back to its `agent_run`.
-
-Not wired into `luna/api/main.py` here -- CONTRACT.md: "the integrator wires
-`app.include_router()`."
 """
 
 from __future__ import annotations
